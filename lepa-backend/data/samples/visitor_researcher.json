@@ -1,0 +1,23 @@
+{
+  "visitor_id": "v_researcher_003",
+  "ip_address": "45.67.89.123",
+  "pages_visited": [
+    "/blog",
+    "/blog/industry-trends-2024",
+    "/blog/best-practices",
+    "/resources"
+  ],
+  "time_on_site_seconds": 180,
+  "visits_this_week": 1,
+  "referral_source": "google",
+  "device_metadata": {
+    "browser": "Safari",
+    "os": "iOS",
+    "device_type": "mobile"
+  },
+  "location_metadata": {
+    "city": "New York",
+    "region": "New York",
+    "country": "United States"
+  }
+}

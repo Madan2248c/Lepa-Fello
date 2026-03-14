@@ -1,0 +1,26 @@
+{
+  "visitor_id": "v_high_intent_001",
+  "ip_address": "104.28.45.123",
+  "pages_visited": [
+    "/",
+    "/features",
+    "/pricing",
+    "/case-studies",
+    "/case-studies/acme-corp",
+    "/pricing",
+    "/contact-sales"
+  ],
+  "time_on_site_seconds": 480,
+  "visits_this_week": 4,
+  "referral_source": "google",
+  "device_metadata": {
+    "browser": "Chrome",
+    "os": "macOS",
+    "device_type": "desktop"
+  },
+  "location_metadata": {
+    "city": "San Francisco",
+    "region": "California",
+    "country": "United States"
+  }
+}

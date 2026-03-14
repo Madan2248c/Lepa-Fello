@@ -1,0 +1,13 @@
+*.md
+lepa-backend/services/__pycache__
+lepa-backend/schemas/__pycache__
+
+lepa-backend/models/__pycache__
+lepa-backend/tests/__pycache__
+lepa-backend/data/__pycache__
+lepa-backend/data/samples/__pycache__
+lepa-backend/data/samples/__pycache__
+lepa-backend/clients/__pycache__
+lepa-backend/api/__pycache__
+lepa-backend/__pycache__
+*.env 

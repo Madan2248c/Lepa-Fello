@@ -1,0 +1,26 @@
+{
+  "visitor_id": "v_tech_eval_002",
+  "ip_address": "203.45.67.89",
+  "pages_visited": [
+    "/",
+    "/docs",
+    "/docs/getting-started",
+    "/api",
+    "/api/reference",
+    "/docs/integrations",
+    "/features"
+  ],
+  "time_on_site_seconds": 720,
+  "visits_this_week": 2,
+  "referral_source": "linkedin",
+  "device_metadata": {
+    "browser": "Firefox",
+    "os": "Linux",
+    "device_type": "desktop"
+  },
+  "location_metadata": {
+    "city": "Austin",
+    "region": "Texas",
+    "country": "United States"
+  }
+}
