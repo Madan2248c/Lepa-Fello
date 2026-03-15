@@ -21,6 +21,7 @@ OUTREACH_PROMPT = """You are an expert B2B sales copywriter. Generate personaliz
 
 ACCOUNT INTELLIGENCE:
 Company: {company_name}
+Contact Name: {contact_name}
 Industry: {industry}
 Size: {company_size}
 Intent Stage: {intent_stage} (score: {intent_score}/10)
@@ -30,7 +31,7 @@ Business Signals: {business_signals}
 Tech Stack: {tech_stack}
 AI Summary: {ai_summary}
 
-Generate TWO outreach drafts:
+Generate TWO outreach drafts. Address the contact by their first name ({contact_first_name}). Never use placeholders like {{name}} or [Name].
 
 1. COLD EMAIL — subject line + 3-paragraph body (max 150 words total). Reference a specific signal. End with one clear CTA.
 2. LINKEDIN MESSAGE — max 300 characters. Conversational, not salesy. Reference something specific about them.
@@ -53,6 +54,7 @@ async def generate_outreach_drafts(
     business_signals_summary: list[str],
     tech_stack_names: list[str],
     ai_summary: str,
+    contact_name: str = "",
 ) -> dict:
     """
     Generate personalized outreach drafts for the top contact at this account.
@@ -65,6 +67,8 @@ async def generate_outreach_drafts(
 
     prompt = OUTREACH_PROMPT.format(
         company_name=profile.name,
+        contact_name=contact_name or "the team",
+        contact_first_name=contact_name.split()[0] if contact_name else "there",
         industry=profile.industry or "Unknown",
         company_size=profile.company_size or "Unknown",
         intent_stage=intent.stage,

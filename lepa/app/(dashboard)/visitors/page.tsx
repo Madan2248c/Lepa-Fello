@@ -98,7 +98,9 @@ export default function VisitorsPage() {
           referral_source: visitor.referral_source || undefined,
         }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: any;
+      try { data = JSON.parse(text); } catch { throw new Error(text.slice(0, 100)); }
       if (!res.ok) throw new Error(data.detail || "Analysis failed");
       setResult(data);
     } catch (err) {
@@ -306,6 +308,8 @@ export default function VisitorsPage() {
         deepLoading={deepLoading}
         onDeepResearch={result && (result as { account_name?: string }).account_name ? handleDeepResearch : undefined}
         onPushHubspot={result && !(result as { error?: string }).error ? handlePushHubspot : undefined}
+        tenantId={tenantId}
+        apiFetch={apiFetch}
       />
     </div>
   );

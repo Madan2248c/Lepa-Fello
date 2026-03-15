@@ -11,10 +11,9 @@ import asyncpg
 
 logger = logging.getLogger("lepa.db")
 
-DATABASE_URL = os.getenv(
-    "NEON_DATABASE_URL",
-    "postgresql://neondb_owner:npg_DLbHvqht97pz@ep-damp-mountain-akb7vu44-pooler.c-3.us-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
-)
+DATABASE_URL = os.getenv("NEON_DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("NEON_DATABASE_URL environment variable is not set")
 
 
 async def _connect():

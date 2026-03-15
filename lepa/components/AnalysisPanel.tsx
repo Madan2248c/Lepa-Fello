@@ -34,6 +34,8 @@ interface AnalysisPanelProps {
   deepLoading?: boolean;
   onDeepResearch?: (force?: boolean) => void;
   onPushHubspot?: () => void;
+  tenantId?: string | null;
+  apiFetch?: (path: string, tenantId: string | null, options?: RequestInit) => Promise<Response>;
 }
 
 const priorityColors = {
@@ -43,7 +45,7 @@ const priorityColors = {
 };
 
 const roleColors: Record<string, string> = {
-  "Economic Buyer": "bg-purple-600 text-white",
+  "Economic Buyer": "bg-[#484848] text-white",
   "Champion": "bg-emerald-600 text-white",
   "Technical Evaluator": "bg-[#FF5A5F] text-white",
   "Blocker": "bg-red-600 text-white",
@@ -96,13 +98,35 @@ function IcpRadar({ dims }: { dims: Record<string, number> }) {
   );
 }
 
-function DeepResearchView({ data }: { data: Record<string, unknown> }) {
+function DeepResearchView({ data, tenantId, apiFetch, accountDomain }: {
+  data: Record<string, unknown>;
+  tenantId?: string | null;
+  apiFetch?: (path: string, tenantId: string | null, options?: RequestInit) => Promise<Response>;
+  accountDomain?: string | null;
+}) {
   const committee = (data.buying_committee as Array<Record<string, string>>) || [];
   const signals = (data.signals as string[]) || [];
   const angles = (data.outreach_angles as string[]) || [];
   const email = data.cold_email as { subject?: string; body?: string } | undefined;
   const score = data.icp_score as number | undefined;
   const dims = data.icp_dimensions as Record<string, number> | undefined;
+  const [added, setAdded] = useState<Set<number>>(new Set());
+
+  const addContact = async (m: Record<string, string>, i: number) => {
+    if (!apiFetch) return;
+    await apiFetch("/contacts", tenantId ?? null, {
+      method: "POST",
+      body: JSON.stringify({
+        name: m.name,
+        title: m.title || "",
+        role: m.role || "",
+        source_url: m.linkedin_url || "",
+        company_name: String(data.company_name || ""),
+        company_domain: accountDomain || "",
+      }),
+    });
+    setAdded(prev => new Set(prev).add(i));
+  };
 
   return (
     <div className="space-y-3 mt-2">
@@ -125,7 +149,7 @@ function DeepResearchView({ data }: { data: Record<string, unknown> }) {
           <ul className="space-y-1">
             {signals.map((s, i) => (
               <li key={i} className="flex gap-2 text-sm text-[#484848]">
-                <span className="text-purple-500 mt-0.5">•</span>{s}
+                <span className="text-[#FF5A5F] mt-0.5">•</span>{s}
               </li>
             ))}
           </ul>
@@ -147,9 +171,18 @@ function DeepResearchView({ data }: { data: Record<string, unknown> }) {
                   {!!m.engagement_angle && <p className="text-xs text-[#767676] mt-0.5">{m.engagement_angle}</p>}
                 </div>
                 {!!m.linkedin_url && (
-                  <a href={m.linkedin_url} target="_blank" rel="noreferrer" className="shrink-0 text-[#767676] hover:text-purple-600">
+                  <a href={m.linkedin_url} target="_blank" rel="noreferrer" className="shrink-0 text-[#767676] hover:text-[#FF5A5F]">
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
+                )}
+                {apiFetch && (
+                  <button
+                    onClick={() => addContact(m, i)}
+                    disabled={added.has(i)}
+                    className="shrink-0 text-xs px-2 py-0.5 rounded border border-[#DDDDDD] text-[#484848] hover:bg-[#F7F7F7] disabled:opacity-50"
+                  >
+                    {added.has(i) ? "Added" : "+ Add"}
+                  </button>
                 )}
               </div>
             ))}
@@ -203,6 +236,8 @@ export default function AnalysisPanel({
   deepLoading,
   onDeepResearch,
   onPushHubspot,
+  tenantId,
+  apiFetch,
 }: AnalysisPanelProps) {
   if (!isOpen) return null;
 
@@ -431,14 +466,14 @@ export default function AnalysisPanel({
                     <button
                       onClick={() => onDeepResearch?.()}
                       disabled={deepLoading}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 disabled:opacity-50"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-[#484848] text-white text-sm font-medium rounded-md hover:bg-[#333333] disabled:opacity-50"
                     >
                       {deepLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                       {deepLoading ? "Researching..." : "Run Deep Research"}
                     </button>
                   </div>
                   {deepLoading && (
-                    <p className="text-sm text-purple-600">Agent researching — Apollo, Exa, BuiltWith, LinkedIn...</p>
+                    <p className="text-sm text-[#767676]">Researching, this may take a minute...</p>
                   )}
                   {deepResearch && !deepLoading && (
                     deepResearch.error
@@ -447,10 +482,10 @@ export default function AnalysisPanel({
                           {deepResearch._cached && (
                             <p className="text-xs text-[#767676] mb-2 flex items-center gap-1">
                               Showing cached result —
-                              <button onClick={() => onDeepResearch?.(true)} className="text-purple-600 underline hover:no-underline">re-run</button>
+                              <button onClick={() => onDeepResearch?.(true)} className="text-[#FF5A5F] underline hover:no-underline">re-run</button>
                             </p>
                           )}
-                          <DeepResearchView data={deepResearch} />
+                          <DeepResearchView data={deepResearch} tenantId={tenantId} apiFetch={apiFetch} accountDomain={result?.domain} />
                         </>
                   )}
                 </div>

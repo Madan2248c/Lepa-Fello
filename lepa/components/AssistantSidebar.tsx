@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageSquare, X, Send, Loader2, ChevronRight } from "lucide-react";
 import { useTenantId } from "@/hooks/useTenantId";
+import { useAuth } from "@clerk/nextjs";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface Message {
   role: "user" | "assistant";
@@ -26,6 +27,7 @@ export default function AssistantSidebar({
   onClose: () => void;
 }) {
   const tenantId = useTenantId();
+  const { getToken } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -52,11 +54,13 @@ export default function AssistantSidebar({
     setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
     try {
+      const token = await getToken();
       const res = await fetch(`${API_BASE}/assistant/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Tenant-Id": tenantId || "default",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ messages: next }),
       });

@@ -28,6 +28,35 @@ class EnrichRequest(BaseModel):
     sender_name: str = ""
 
 
+class CreateContactRequest(BaseModel):
+    name: str
+    title: str = ""
+    role: str = ""
+    source_url: str = ""
+    company_name: str = ""
+    company_domain: str = ""
+
+
+@router.post("")
+async def create_contact(
+    req: CreateContactRequest,
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+):
+    tenant_id = x_tenant_id or "default"
+    from clients.db_client import upsert_contacts
+    await upsert_contacts(tenant_id, [{
+        "name": req.name,
+        "title": req.title,
+        "role": req.role,
+        "source_url": req.source_url,
+        "company_name": req.company_name,
+        "company_domain": req.company_domain,
+        "source_type": "manual",
+        "source_id": req.company_domain or req.company_name,
+    }])
+    return {"status": "ok"}
+
+
 @router.post("/{contact_id}/enrich")
 async def enrich_contact(
     contact_id: int,

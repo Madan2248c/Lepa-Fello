@@ -6,7 +6,7 @@ import { useTenantId } from "@/hooks/useTenantId";
 import { apiFetch } from "@/lib/api";
 import { useApiFetch } from "@/hooks/useApiFetch";
 
-const BACKEND = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface TrackerKey { api_key: string; label: string; active: boolean; created_at: string; }
 interface TrackedVisitor {
@@ -55,7 +55,7 @@ export default function TrackingPage() {
     finally { setLoadingKey(false); }
   };
 
-  const TRACKER_ORIGIN = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  const TRACKER_ORIGIN = "https://d3a0jits88oyj6.cloudfront.net";
   const snippet = activeKey
     ? `<script async src="${TRACKER_ORIGIN}/tracker.js?key=${activeKey}&endpoint=${BACKEND}"></script>`
     : "";

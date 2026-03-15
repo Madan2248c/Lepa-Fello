@@ -441,6 +441,8 @@ export default function CompaniesPage() {
         deepLoading={deepLoading}
         onDeepResearch={result && (result as { account_name?: string }).account_name ? handleDeepResearch : undefined}
         onPushHubspot={result && !(result as { error?: string }).error ? handlePushHubspot : undefined}
+        tenantId={tenantId}
+        apiFetch={apiFetch}
       />
     </div>
   );

@@ -254,12 +254,13 @@ async def run_company_pipeline(input_data: CompanySeedInput, tenant_id: str = "d
     tech_names = [t.name for t in tech_stack]
     signal_types = [s.type for s in business_signals]
     signal_summaries = [s.summary for s in business_signals]
+    top_contact_name = leadership[0].get("name", "") if leadership else ""
 
     t3 = time.time()
     buying_committee_raw, trend_velocity_raw, outreach_raw, competitive_raw = await asyncio.gather(
         build_buying_committee(leadership, enrich_with_linkedin=True, company_name=profile.name or "", industry=profile.industry or "", tenant_id=tenant_id, prefetched_profiles=prefetched_profiles),
         detect_trend_velocity(profile.name or "", profile.domain),
-        generate_outreach_drafts(profile, persona, intent, key_signals, signal_summaries, tech_names, ai_summary),
+        generate_outreach_drafts(profile, persona, intent, key_signals, signal_summaries, tech_names, ai_summary, contact_name=top_contact_name),
         discover_competitive_context(profile.name or "", profile.domain, tech_names),
     )
     p3_ms = int((time.time()-t3)*1000)

@@ -30,7 +30,7 @@ interface Contact {
 }
 
 const roleColors: Record<string, string> = {
-  "Economic Buyer": "bg-purple-100 text-purple-700 border-purple-200",
+  "Economic Buyer": "bg-[#F7F7F7] text-[#484848] border-[#DDDDDD]",
   "Champion": "bg-emerald-100 text-emerald-700 border-emerald-200",
   "Technical Evaluator": "bg-orange-100 text-orange-700 border-orange-200",
   "Blocker": "bg-red-100 text-red-700 border-red-200",
