@@ -125,7 +125,7 @@ app.include_router(crm_router, dependencies=_auth)
 app.include_router(icp_router, dependencies=_auth)
 app.include_router(contacts_router, dependencies=_auth)
 app.include_router(history_router, dependencies=_auth)
-app.include_router(tracker_router, dependencies=_auth)
+app.include_router(tracker_router)  # public — called by anonymous visitor browsers
 app.include_router(tracker_keys_router, dependencies=_auth)
 app.include_router(assistant_router, dependencies=_auth)
 app.include_router(hubspot_connection_router, dependencies=_auth)
