@@ -6,7 +6,7 @@ import { LayoutDashboard, Settings, Building2, Users, Contact, Code2 } from "luc
 import { useUser } from "@clerk/nextjs";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Visitors", href: "/visitors", icon: Users },
   { name: "Companies", href: "/companies", icon: Building2 },
   { name: "Contacts", href: "/contacts", icon: Contact },
