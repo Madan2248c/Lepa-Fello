@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Copy, Plus, RefreshCw, Loader2 } from "lucide-react";
 import { useTenantId } from "@/hooks/useTenantId";
 import { apiFetch } from "@/lib/api";
+import { useApiFetch } from "@/hooks/useApiFetch";
 
 const BACKEND = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -15,6 +16,7 @@ interface TrackedVisitor {
 }
 
 export default function TrackingPage() {
+  const apiFetch = useApiFetch();
   const tenantId = useTenantId();
   const [keys, setKeys] = useState<TrackerKey[]>([]);
   const [visitors, setVisitors] = useState<TrackedVisitor[]>([]);

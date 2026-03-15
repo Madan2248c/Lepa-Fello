@@ -5,6 +5,7 @@ import { Save, Settings as SettingsIcon, User, Plus, X, Briefcase, Link, CheckCi
 import { useUser } from "@clerk/nextjs";
 import { useTenantId } from "@/hooks/useTenantId";
 import { apiFetch } from "@/lib/api";
+import { useApiFetch } from "@/hooks/useApiFetch";
 
 interface ICPProfile {
   target_industries: string[];
@@ -21,6 +22,7 @@ interface BusinessProfile {
 }
 
 export default function SettingsPage() {
+  const apiFetch = useApiFetch();
   const { user } = useUser();
   const tenantId = useTenantId();
   const [icp, setIcp] = useState<ICPProfile>({

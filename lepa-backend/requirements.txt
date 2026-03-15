@@ -10,3 +10,5 @@ strands-agents>=1.0.0
 strands-agents-tools>=0.2.0
 ipinfo>=5.0.0
 apify-client>=1.8.0
+asyncpg>=0.29.0
+PyJWT[crypto]>=2.8.0

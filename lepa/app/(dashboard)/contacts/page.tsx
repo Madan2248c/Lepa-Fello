@@ -5,6 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { Search, Users, ExternalLink, Building2, X, Loader2, Mail, Linkedin, Send, CheckSquare, Square } from "lucide-react";
 import { useTenantId } from "@/hooks/useTenantId";
 import { apiFetch } from "@/lib/api";
+import { useApiFetch } from "@/hooks/useApiFetch";
 import { Skeleton } from "@/components/Skeleton";
 
 interface Contact {
@@ -37,6 +38,7 @@ const roleColors: Record<string, string> = {
 };
 
 export default function ContactsPage() {
+  const apiFetch = useApiFetch();
   const tenantId = useTenantId();
   const { user } = useUser();
   const senderName = user ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() : "";

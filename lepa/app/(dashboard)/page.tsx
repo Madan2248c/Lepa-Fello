@@ -5,6 +5,7 @@ import { Building2, Users, TrendingUp, Contact, ArrowRight, Zap } from "lucide-r
 import Link from "next/link";
 import { useTenantId } from "@/hooks/useTenantId";
 import { apiFetch } from "@/lib/api";
+import { useApiFetch } from "@/hooks/useApiFetch";
 import { StatCardSkeleton, Skeleton } from "@/components/Skeleton";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -42,6 +43,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function DashboardPage() {
+  const apiFetch = useApiFetch();
   const tenantId = useTenantId();
   const [stats, setStats] = useState({ companies: 0, visitors: 0, runs: 0, contacts: 0 });
   const [recentRuns, setRecentRuns] = useState<RecentRun[]>([]);

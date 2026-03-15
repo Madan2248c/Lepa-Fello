@@ -1,0 +1,54 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lepa-backend/**'
+      - 'lepa-agent/**'
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    if: contains(toJson(github.event.commits), 'lepa-backend/')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy backend to EC2
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$SSH_KEY" > key.pem
+          chmod 600 key.pem
+          rsync -az --exclude='venv' --exclude='__pycache__' --exclude='.git' \
+            -e "ssh -i key.pem -o StrictHostKeyChecking=no" \
+            ./lepa-backend/ ubuntu@52.66.75.37:/home/ubuntu/lepa-backend/
+          ssh -i key.pem -o StrictHostKeyChecking=no ubuntu@52.66.75.37 \
+            'cd /home/ubuntu/lepa-backend && \
+             sudo docker stop lepa && sudo docker rm lepa && \
+             sudo docker build -t lepa-backend . && \
+             sudo docker run -d --name lepa --restart unless-stopped --env-file .env -p 8000:8000 lepa-backend'
+          rm key.pem
+
+  deploy-agent:
+    runs-on: ubuntu-latest
+    if: contains(toJson(github.event.commits), 'lepa-agent/')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy agent to EC2
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$SSH_KEY" > key.pem
+          chmod 600 key.pem
+          rsync -az --exclude='__pycache__' --exclude='.git' \
+            -e "ssh -i key.pem -o StrictHostKeyChecking=no" \
+            ./lepa-agent/ ubuntu@52.66.75.37:/home/ubuntu/lepa-agent/
+          rsync -az --exclude='venv' --exclude='__pycache__' --exclude='.git' \
+            -e "ssh -i key.pem -o StrictHostKeyChecking=no" \
+            ./lepa-backend/ ubuntu@52.66.75.37:/home/ubuntu/lepa-backend/
+          ssh -i key.pem -o StrictHostKeyChecking=no ubuntu@52.66.75.37 \
+            'cd /home/ubuntu/lepa-agent && \
+             sudo docker stop lepa-agent 2>/dev/null; sudo docker rm lepa-agent 2>/dev/null; \
+             sudo docker build -t lepa-agent . && \
+             sudo docker run -d --name lepa-agent --restart unless-stopped --env-file /home/ubuntu/lepa-backend/.env -p 8001:8001 lepa-agent'
+          rm key.pem

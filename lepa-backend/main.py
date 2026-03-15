@@ -10,7 +10,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -32,6 +32,7 @@ from api.routes_tracker import router as tracker_router
 from api.routes_tracker_keys import router as tracker_keys_router
 from api.routes_hubspot_connection import router as hubspot_connection_router
 from api.routes_assistant import router as assistant_router
+from api.auth import get_current_user
 
 
 def validate_config():
@@ -116,16 +117,18 @@ app.add_middleware(
 )
 
 
-app.include_router(analyze_router)
-app.include_router(batch_router)
-app.include_router(crm_router)
-app.include_router(icp_router)
-app.include_router(contacts_router)
-app.include_router(history_router)
-app.include_router(tracker_router)
-app.include_router(tracker_keys_router)
-app.include_router(assistant_router)
-app.include_router(hubspot_connection_router)
+_auth = [Depends(get_current_user)]
+
+app.include_router(analyze_router, dependencies=_auth)
+app.include_router(batch_router, dependencies=_auth)
+app.include_router(crm_router, dependencies=_auth)
+app.include_router(icp_router, dependencies=_auth)
+app.include_router(contacts_router, dependencies=_auth)
+app.include_router(history_router, dependencies=_auth)
+app.include_router(tracker_router, dependencies=_auth)
+app.include_router(tracker_keys_router, dependencies=_auth)
+app.include_router(assistant_router, dependencies=_auth)
+app.include_router(hubspot_connection_router, dependencies=_auth)
 
 
 @app.get("/", tags=["root"])

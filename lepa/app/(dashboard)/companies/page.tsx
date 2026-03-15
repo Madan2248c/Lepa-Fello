@@ -6,6 +6,7 @@ import { TableSkeleton } from "@/components/Skeleton";
 import { useUser } from "@clerk/nextjs";
 import { useTenantId } from "@/hooks/useTenantId";
 import { apiFetch, AGENT_BASE } from "@/lib/api";
+import { useApiFetch } from "@/hooks/useApiFetch";
 import AnalysisPanel from "@/components/AnalysisPanel";
 
 interface Account {
@@ -21,6 +22,7 @@ interface Account {
 }
 
 export default function CompaniesPage() {
+  const apiFetch = useApiFetch();
   const tenantId = useTenantId();
   const { user } = useUser();
   const senderName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "";

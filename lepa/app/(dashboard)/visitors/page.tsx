@@ -5,6 +5,7 @@ import { Users, Search, Plus, Loader2 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useTenantId } from "@/hooks/useTenantId";
 import { apiFetch, AGENT_BASE } from "@/lib/api";
+import { useApiFetch } from "@/hooks/useApiFetch";
 import AnalysisPanel from "@/components/AnalysisPanel";
 import { TableSkeleton } from "@/components/Skeleton";
 
@@ -19,6 +20,7 @@ interface Visitor {
 }
 
 export default function VisitorsPage() {
+  const apiFetch = useApiFetch();
   const tenantId = useTenantId();
   const { user } = useUser();
   const senderName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "";
