@@ -1,4 +1,3 @@
-*.md
 lepa-backend/services/__pycache__
 lepa-backend/schemas/__pycache__
 
