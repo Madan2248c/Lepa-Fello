@@ -190,6 +190,32 @@ export default function CompaniesPage() {
     }
   }, [selectedAccount, tenantId]);
 
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchResults, setBatchResults] = useState<null | { items: Array<{ label: string; success: boolean; account_name?: string; intent_score?: number; intent_stage?: string; error?: string }> }>(null);
+
+  const handleBatchAnalyze = async (lines: string[]) => {
+    setBatchLoading(true);
+    setBatchResults(null);
+    try {
+      const companies = lines.map(l => {
+        const [company_name, partial_domain] = l.split(",").map(s => s.trim());
+        return { company_name, partial_domain: partial_domain || undefined };
+      });
+      const res = await apiFetch("/batch/analyze", tenantId, {
+        method: "POST",
+        body: JSON.stringify({ companies }),
+      });
+      const data = await res.json();
+      setBatchResults(data);
+      loadAccounts();
+    } catch {
+      setBatchResults({ items: [{ label: "Error", success: false, error: "Batch request failed" }] });
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 min-w-0">
       {/* Tabs bar - HubSpot style */}
@@ -201,13 +227,21 @@ export default function CompaniesPage() {
           </span>
         </button>
         <div className="flex-1" />
-        <button
-          onClick={() => setAddModalOpen(true)}
-          className="flex items-center gap-1.5 bg-[#ff7a59] hover:bg-[#ff5c35] text-white text-[14px] font-medium px-4 py-[7px] rounded-[4px] transition-colors"
-        >
-          <Plus className="w-[14px] h-[14px]" />
-          Add companies
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setBatchModalOpen(true)}
+            className="flex items-center gap-1.5 border border-[#cbd6e2] text-[#33475b] text-[14px] font-medium px-4 py-[7px] rounded-[4px] hover:bg-[#f5f8fa] transition-colors"
+          >
+            Batch analyze
+          </button>
+          <button
+            onClick={() => setAddModalOpen(true)}
+            className="flex items-center gap-1.5 bg-[#ff7a59] hover:bg-[#ff5c35] text-white text-[14px] font-medium px-4 py-[7px] rounded-[4px] transition-colors"
+          >
+            <Plus className="w-[14px] h-[14px]" />
+            Add company
+          </button>
+        </div>
       </div>
 
       {/* Toolbar - HubSpot style */}
@@ -379,6 +413,15 @@ export default function CompaniesPage() {
         />
       )}
 
+      {batchModalOpen && (
+        <BatchModal
+          onClose={() => { setBatchModalOpen(false); setBatchResults(null); }}
+          onSubmit={handleBatchAnalyze}
+          loading={batchLoading}
+          results={batchResults}
+        />
+      )}
+
       <AnalysisPanel
         isOpen={panelOpen}
         onClose={() => { setPanelOpen(false); setSelectedAccount(null); }}
@@ -451,6 +494,76 @@ function AddCompanyModal({ onClose, onAdd, loading }: { onClose: () => void; onA
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function BatchModal({ onClose, onSubmit, loading, results }: {
+  onClose: () => void;
+  onSubmit: (lines: string[]) => void;
+  loading: boolean;
+  results: null | { items: Array<{ label: string; success: boolean; account_name?: string; intent_score?: number; intent_stage?: string; error?: string }> };
+}) {
+  const [text, setText] = useState("");
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/30 z-50" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-[6px] border border-[#cbd6e2] w-full max-w-lg shadow-xl">
+          <div className="px-6 py-4 border-b border-[#cbd6e2]">
+            <h2 className="text-base font-semibold text-[#33475b]">Batch Analyze Companies</h2>
+            <p className="text-xs text-[#516f90] mt-0.5">One company per line. Optionally add domain: <span className="font-mono">Acme Corp, acme.com</span></p>
+          </div>
+          <div className="p-6 space-y-4">
+            {!results ? (
+              <>
+                <textarea
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  placeholder={"Apple Inc\nMicrosoft Corporation, microsoft.com\nStripe, stripe.com"}
+                  rows={8}
+                  className="w-full px-3 py-2 border border-[#cbd6e2] rounded-[4px] text-sm text-[#33475b] font-mono resize-none focus:outline-none focus:border-[#ff7a59]"
+                />
+                <p className="text-xs text-[#516f90]">{lines.length} / 10 companies</p>
+                <div className="flex gap-3">
+                  <button onClick={onClose} className="flex-1 px-4 py-2 border border-[#cbd6e2] text-[#33475b] rounded-[4px] hover:bg-[#f5f8fa]">Cancel</button>
+                  <button
+                    onClick={() => onSubmit(lines)}
+                    disabled={loading || lines.length === 0 || lines.length > 10}
+                    className="flex-1 px-4 py-2 bg-[#ff7a59] text-white rounded-[4px] hover:bg-[#ff5c35] disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    {loading ? `Analyzing ${lines.length} companies...` : "Run Batch"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {results.items.map((item, i) => (
+                    <div key={i} className={`flex items-center justify-between p-3 rounded-[4px] border ${item.success ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
+                      <div>
+                        <p className="text-sm font-medium text-[#33475b]">{item.account_name || item.label}</p>
+                        {item.success ? (
+                          <p className="text-xs text-[#516f90]">Intent: {item.intent_score?.toFixed(1)} · {item.intent_stage}</p>
+                        ) : (
+                          <p className="text-xs text-red-600">{item.error}</p>
+                        )}
+                      </div>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded ${item.success ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}`}>
+                        {item.success ? "✓" : "✗"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={onClose} className="w-full px-4 py-2 bg-[#ff7a59] text-white rounded-[4px] hover:bg-[#ff5c35]">Done</button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </>
