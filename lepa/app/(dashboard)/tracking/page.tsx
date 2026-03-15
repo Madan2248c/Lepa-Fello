@@ -21,6 +21,8 @@ export default function TrackingPage() {
   const [loadingKey, setLoadingKey] = useState(false);
   const [loadingVisitors, setLoadingVisitors] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [saved, setSaved] = useState<Set<string>>(new Set());
 
   const activeKey = keys[0]?.api_key;
 
@@ -43,19 +45,12 @@ export default function TrackingPage() {
     }
   }, [tenantId]);
 
-  useEffect(() => {
-    loadKeys();
-    loadVisitors();
-  }, [loadKeys, loadVisitors]);
+  useEffect(() => { loadKeys(); loadVisitors(); }, [loadKeys, loadVisitors]);
 
   const handleCreateKey = async () => {
     setLoadingKey(true);
-    try {
-      await apiFetch("/tracker-keys", tenantId, { method: "POST" });
-      await loadKeys();
-    } finally {
-      setLoadingKey(false);
-    }
+    try { await apiFetch("/tracker-keys", tenantId, { method: "POST" }); await loadKeys(); }
+    finally { setLoadingKey(false); }
   };
 
   const TRACKER_ORIGIN = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
@@ -63,152 +58,122 @@ export default function TrackingPage() {
     ? `<script async src="${TRACKER_ORIGIN}/tracker.js?key=${activeKey}&endpoint=${BACKEND}"></script>`
     : "";
 
-  const copySnippet = () => {
-    navigator.clipboard.writeText(snippet);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const [saved, setSaved] = useState<Set<string>>(new Set());
+  const copySnippet = () => { navigator.clipboard.writeText(snippet); setCopied(true); setTimeout(() => setCopied(false), 2000); };
+  const copyKey = () => { navigator.clipboard.writeText(activeKey); setCopiedKey(true); setTimeout(() => setCopiedKey(false), 2000); };
 
   const saveToVisitors = async (v: TrackedVisitor) => {
     await apiFetch("/analyze/visitors", tenantId, {
       method: "POST",
       body: JSON.stringify({
-        visitor_id: v.vid,
-        ip_address: v.ip_address,
+        visitor_id: v.vid, ip_address: v.ip_address,
         pages_visited: v.pages.join(", "),
         time_on_site_seconds: Math.round(v.total_active_ms / 1000),
-        visits_this_week: v.visit_count,
-        referral_source: "",
+        visits_this_week: v.visit_count, referral_source: "",
       }),
     });
     setSaved(prev => new Set(prev).add(v.vid));
   };
 
   return (
-    <div className="flex flex-col flex-1 min-w-0 bg-[#f5f8fa]">
-      {/* Header */}
-      <div className="flex items-center border-b border-[#cbd6e2] bg-white px-6 py-0 min-h-[48px]">
-        <span className="text-[14px] font-medium text-[#33475b] border-b-2 border-[#ff7a59] py-3 -mb-px">
-          Tracking Setup
-        </span>
+    <div className="flex flex-col flex-1 min-w-0 h-full">
+      {/* Page header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#DDDDDD] bg-white shrink-0">
+        <div>
+          <h1 className="text-[18px] font-semibold text-[#484848]">Tracking</h1>
+          <p className="text-[13px] text-[#767676] mt-0.5">Embed the script on any website to capture visitor intelligence</p>
+        </div>
+        {!activeKey ? (
+          <button
+            onClick={handleCreateKey}
+            disabled={loadingKey}
+            className="flex items-center gap-1.5 bg-[#FF5A5F] hover:bg-[#e0504a] text-white text-[13px] font-medium px-4 py-2 rounded-[4px] disabled:opacity-50"
+          >
+            {loadingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+            Generate Key
+          </button>
+        ) : (
+          <button onClick={loadVisitors} className="flex items-center gap-1.5 text-[13px] text-[#767676] hover:text-[#484848] border border-[#DDDDDD] px-3 py-2 rounded-[4px] hover:bg-[#F7F7F7]">
+            <RefreshCw className={`w-3.5 h-3.5 ${loadingVisitors ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        )}
       </div>
 
-      <div className="p-6 space-y-6 max-w-3xl">
-        {/* API Key section */}
-        <div className="bg-white border border-[#cbd6e2] rounded-[6px] p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-[15px] font-semibold text-[#33475b]">Your Tracking Key</h2>
-              <p className="text-xs text-[#516f90] mt-0.5">Embed this key in your client's website to start capturing visitors automatically.</p>
-            </div>
-            {!activeKey && (
-              <button
-                onClick={handleCreateKey}
-                disabled={loadingKey}
-                className="flex items-center gap-1.5 bg-[#ff7a59] hover:bg-[#ff5c35] text-white text-[13px] font-medium px-4 py-[7px] rounded-[4px] disabled:opacity-50"
-              >
-                {loadingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                Generate Key
+      {/* Setup strip — only shown when key exists */}
+      {activeKey && (
+        <div className="flex gap-0 border-b border-[#DDDDDD] bg-white shrink-0">
+          {/* API Key */}
+          <div className="flex-1 px-6 py-4 border-r border-[#DDDDDD]">
+            <p className="text-[11px] font-semibold text-[#767676] uppercase tracking-wide mb-2">API Key</p>
+            <div className="flex items-center gap-2 bg-[#F7F7F7] border border-[#DDDDDD] rounded-[4px] px-3 py-2">
+              <code className="flex-1 text-[12px] font-mono text-[#484848] truncate">{activeKey}</code>
+              <button onClick={copyKey} className="text-[#767676] hover:text-[#484848] shrink-0" title="Copy key">
+                {copiedKey ? <span className="text-[11px] text-green-600">✓</span> : <Copy className="w-3.5 h-3.5" />}
               </button>
-            )}
+            </div>
           </div>
-
-          {activeKey ? (
-            <div className="flex items-center gap-2 bg-[#f5f8fa] border border-[#cbd6e2] rounded-[4px] px-3 py-2">
-              <code className="flex-1 text-[13px] font-mono text-[#33475b] break-all">{activeKey}</code>
-              <button
-                onClick={() => { navigator.clipboard.writeText(activeKey); }}
-                className="text-[#516f90] hover:text-[#33475b] shrink-0"
-                title="Copy key"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <p className="text-sm text-[#516f90]">No key yet — generate one above.</p>
-          )}
-        </div>
-
-        {/* Embed snippet */}
-        {activeKey && (
-          <div className="bg-white border border-[#cbd6e2] rounded-[6px] p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[15px] font-semibold text-[#33475b]">Embed Snippet</h2>
-              <button
-                onClick={copySnippet}
-                className="flex items-center gap-1.5 text-[13px] text-[#516f90] hover:text-[#33475b] border border-[#cbd6e2] px-3 py-1.5 rounded-[4px] hover:bg-[#f5f8fa]"
-              >
-                <Copy className="w-3.5 h-3.5" />
+          {/* Embed snippet */}
+          <div className="flex-[2] px-6 py-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] font-semibold text-[#767676] uppercase tracking-wide">Embed Snippet</p>
+              <button onClick={copySnippet} className="flex items-center gap-1 text-[12px] text-[#767676] hover:text-[#484848]">
+                <Copy className="w-3 h-3" />
                 {copied ? "Copied!" : "Copy"}
               </button>
             </div>
-            <p className="text-xs text-[#516f90] mb-3">
-              Paste this inside the <code className="bg-[#f5f8fa] px-1 rounded">&lt;head&gt;</code> of your client's website. Works on any site — React, Next.js, plain HTML.
-            </p>
-            <pre className="bg-[#1c1d20] text-[#e8e9ea] text-[12px] font-mono rounded-[4px] p-4 overflow-x-auto whitespace-pre-wrap break-all">
+            <pre className="bg-[#1c1d20] text-[#e8e9ea] text-[11px] font-mono rounded-[4px] px-3 py-2 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
               {snippet}
             </pre>
-            <p className="text-xs text-[#516f90] mt-3">
-              The script is <strong>async</strong> — it won't block page rendering. Tracks page views, time on page, and SPA navigation automatically.
-            </p>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Live visitors table */}
-        <div className="bg-white border border-[#cbd6e2] rounded-[6px]">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[#cbd6e2]">
-            <h2 className="text-[15px] font-semibold text-[#33475b]">
-              Live Visitors
-              <span className="ml-2 bg-[#ff7a59] text-white text-[11px] font-bold rounded-[3px] px-[6px] py-[1px]">
-                {visitors.length}
-              </span>
-            </h2>
-            <button onClick={loadVisitors} className="text-[#516f90] hover:text-[#33475b]" title="Refresh">
-              <RefreshCw className={`w-4 h-4 ${loadingVisitors ? "animate-spin" : ""}`} />
-            </button>
+      {/* Visitors table — fills remaining space */}
+      <div className="flex flex-col flex-1 overflow-hidden bg-white">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-[#DDDDDD] shrink-0">
+          <span className="text-[13px] font-semibold text-[#484848]">
+            Live Visitors
+            <span className="ml-2 bg-[#FF5A5F] text-white text-[10px] font-bold rounded-[3px] px-[5px] py-[1px]">{visitors.length}</span>
+          </span>
+        </div>
+
+        {loadingVisitors ? (
+          <div className="flex items-center justify-center flex-1">
+            <Loader2 className="w-5 h-5 animate-spin text-[#767676]" />
           </div>
-
-          {loadingVisitors ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-5 h-5 animate-spin text-[#516f90]" />
-            </div>
-          ) : visitors.length === 0 ? (
-            <div className="py-12 text-center text-sm text-[#516f90]">
-              No visitors yet. Embed the snippet on a website to start tracking.
-            </div>
-          ) : (
+        ) : visitors.length === 0 ? (
+          <div className="flex flex-col items-center justify-center flex-1 text-center">
+            <p className="text-[14px] text-[#484848] font-medium mb-1">No visitors yet</p>
+            <p className="text-[13px] text-[#767676]">Embed the snippet on a website to start tracking.</p>
+          </div>
+        ) : (
+          <div className="overflow-y-auto flex-1">
             <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-[#cbd6e2] bg-[#f5f8fa]">
+              <thead className="sticky top-0 bg-[#F7F7F7] z-10">
+                <tr className="border-b border-[#DDDDDD]">
                   {["IP Address", "Pages", "Time on Site", "Visits", "Last Seen", ""].map(h => (
-                    <th key={h} className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#516f90] uppercase tracking-wide">{h}</th>
+                    <th key={h} className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#767676] uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {visitors.map((v) => (
-                  <tr key={v.vid} className="border-b border-[#eaf0f6] hover:bg-[#f5f8fa]">
-                    <td className="px-4 py-3 font-mono text-[#33475b]">{v.ip_address || "—"}</td>
-                    <td className="px-4 py-3 text-[#516f90] max-w-[200px]">
+                  <tr key={v.vid} className="border-b border-[#DDDDDD] hover:bg-[#F7F7F7]">
+                    <td className="px-4 py-3 font-mono text-[#484848]">{v.ip_address || "—"}</td>
+                    <td className="px-4 py-3 text-[#767676] max-w-[220px]">
                       <div className="truncate" title={v.pages.join(", ")}>
                         {v.pages.length > 0 ? v.pages[0] : "—"}
-                        {v.pages.length > 1 && <span className="ml-1 text-[11px] text-[#7c98b6]">+{v.pages.length - 1}</span>}
+                        {v.pages.length > 1 && <span className="ml-1 text-[11px]">+{v.pages.length - 1}</span>}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[#33475b]">
-                      {v.total_active_ms > 0 ? `${Math.round(v.total_active_ms / 1000)}s` : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-[#33475b]">{v.visit_count}</td>
-                    <td className="px-4 py-3 text-[#516f90]">
-                      {new Date(v.last_seen_at).toLocaleString()}
-                    </td>
+                    <td className="px-4 py-3 text-[#484848]">{v.total_active_ms > 0 ? `${Math.round(v.total_active_ms / 1000)}s` : "—"}</td>
+                    <td className="px-4 py-3 text-[#484848]">{v.visit_count}</td>
+                    <td className="px-4 py-3 text-[#767676]">{new Date(v.last_seen_at).toLocaleString()}</td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => saveToVisitors(v)}
                         disabled={saved.has(v.vid)}
-                        className="text-[12px] px-2.5 py-1 rounded-[3px] border border-[#cbd6e2] text-[#33475b] hover:bg-[#f5f8fa] disabled:opacity-40 disabled:cursor-default whitespace-nowrap"
+                        className="text-[12px] px-2.5 py-1 rounded-[3px] border border-[#DDDDDD] text-[#484848] hover:bg-[#F7F7F7] disabled:opacity-40 disabled:cursor-default whitespace-nowrap"
                       >
                         {saved.has(v.vid) ? "✓ Saved" : "Save to Visitors"}
                       </button>
@@ -217,8 +182,8 @@ export default function TrackingPage() {
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

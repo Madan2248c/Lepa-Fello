@@ -131,3 +131,42 @@ async def invoke_sonnet(
         max_tokens=max_tokens,
         temperature=temperature,
     )
+
+
+from typing import Generator
+
+def stream_claude(
+    messages: list[dict],
+    system_prompt: Optional[str] = None,
+    model: str = "haiku",
+    max_tokens: int = 1024,
+) -> Generator[str, None, None]:
+    """
+    Stream Claude response via Bedrock converse_stream.
+    Yields text chunks as they arrive.
+
+    messages format: [{"role": "user"|"assistant", "content": "..."}]
+    """
+    model_id = CLAUDE_HAIKU_MODEL_ID if model == "haiku" else CLAUDE_SONNET_MODEL_ID
+
+    formatted = [
+        {"role": m["role"], "content": [{"text": m["content"]}]}
+        for m in messages
+    ]
+
+    kwargs = dict(
+        modelId=model_id,
+        messages=formatted,
+        inferenceConfig={"maxTokens": max_tokens, "temperature": 0.5},
+    )
+    if system_prompt:
+        kwargs["system"] = [{"text": system_prompt}]
+
+    client = get_bedrock_client()
+    response = client.converse_stream(**kwargs)
+
+    for chunk in response["stream"]:
+        if "contentBlockDelta" in chunk:
+            text = chunk["contentBlockDelta"]["delta"].get("text", "")
+            if text:
+                yield text

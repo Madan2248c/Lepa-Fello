@@ -47,6 +47,7 @@ async def list_pipeline_runs(
 )
 async def list_accounts(
     limit: int = Query(default=50, le=100),
+    search: str | None = Query(default=None),
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
 ):
     tenant_id = x_tenant_id or "default"
@@ -55,7 +56,7 @@ async def list_accounts(
 
     # Get from DB first, fall back to in-memory
     try:
-        db_accounts = await _list_db(tenant_id=tenant_id, limit=limit)
+        db_accounts = await _list_db(tenant_id=tenant_id, limit=limit, search=search)
         return {
             "total": len(db_accounts),
             "accounts": [

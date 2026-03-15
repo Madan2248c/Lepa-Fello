@@ -92,24 +92,38 @@ async def get_cached_result(tenant_id: str, account_id: str) -> Optional[dict]:
         await conn.close()
 
 
-async def list_accounts(tenant_id: str, limit: int = 100):
+async def list_accounts(tenant_id: str, limit: int = 100, search: str | None = None):
     conn = await _connect()
     try:
-        rows = await conn.fetch("""
-            SELECT a.account_id, a.account_name, a.domain, a.industry,
-                   p.input_type, p.confidence, p.created_at,
-                   p.result_json
-            FROM accounts a
-            LEFT JOIN LATERAL (
-                SELECT input_type, confidence, created_at, result_json
-                FROM pipeline_runs
-                WHERE tenant_id = a.tenant_id AND account_id = a.account_id
-                ORDER BY created_at DESC LIMIT 1
-            ) p ON true
-            WHERE a.tenant_id = $1
-            ORDER BY a.updated_at DESC
-            LIMIT $2
-        """, tenant_id, limit)
+        if search:
+            rows = await conn.fetch("""
+                SELECT a.account_id, a.account_name, a.domain, a.industry,
+                       p.input_type, p.confidence, p.created_at, p.result_json
+                FROM accounts a
+                LEFT JOIN LATERAL (
+                    SELECT input_type, confidence, created_at, result_json
+                    FROM pipeline_runs
+                    WHERE tenant_id = a.tenant_id AND account_id = a.account_id
+                    ORDER BY created_at DESC LIMIT 1
+                ) p ON true
+                WHERE a.tenant_id = $1
+                  AND (a.account_name ILIKE $3 OR a.domain ILIKE $3)
+                ORDER BY a.updated_at DESC LIMIT $2
+            """, tenant_id, limit, f"%{search}%")
+        else:
+            rows = await conn.fetch("""
+                SELECT a.account_id, a.account_name, a.domain, a.industry,
+                       p.input_type, p.confidence, p.created_at, p.result_json
+                FROM accounts a
+                LEFT JOIN LATERAL (
+                    SELECT input_type, confidence, created_at, result_json
+                    FROM pipeline_runs
+                    WHERE tenant_id = a.tenant_id AND account_id = a.account_id
+                    ORDER BY created_at DESC LIMIT 1
+                ) p ON true
+                WHERE a.tenant_id = $1
+                ORDER BY a.updated_at DESC LIMIT $2
+            """, tenant_id, limit)
         return [dict(row) for row in rows]
     finally:
         await conn.close()
@@ -222,14 +236,22 @@ async def upsert_contacts(tenant_id: str, contacts: list[dict]):
         await conn.close()
 
 
-async def list_contacts(tenant_id: str, limit: int = 200) -> list[dict]:
+async def list_contacts(tenant_id: str, limit: int = 200, search: str | None = None) -> list[dict]:
     conn = await _connect()
     try:
-        rows = await conn.fetch("""
-            SELECT id, name, title, role, source_url, company_name, company_domain, source_type, source_id, created_at
-            FROM contacts WHERE tenant_id = $1
-            ORDER BY created_at DESC LIMIT $2
-        """, tenant_id, limit)
+        if search:
+            rows = await conn.fetch("""
+                SELECT id, name, title, role, source_url, company_name, company_domain, source_type, source_id, created_at
+                FROM contacts WHERE tenant_id = $1
+                  AND (name ILIKE $3 OR company_name ILIKE $3 OR title ILIKE $3)
+                ORDER BY created_at DESC LIMIT $2
+            """, tenant_id, limit, f"%{search}%")
+        else:
+            rows = await conn.fetch("""
+                SELECT id, name, title, role, source_url, company_name, company_domain, source_type, source_id, created_at
+                FROM contacts WHERE tenant_id = $1
+                ORDER BY created_at DESC LIMIT $2
+            """, tenant_id, limit)
         return [dict(r) for r in rows]
     finally:
         await conn.close()

@@ -30,6 +30,8 @@ from api.routes_contacts import router as contacts_router
 from api.routes_history import router as history_router
 from api.routes_tracker import router as tracker_router
 from api.routes_tracker_keys import router as tracker_keys_router
+from api.routes_hubspot_connection import router as hubspot_connection_router
+from api.routes_assistant import router as assistant_router
 
 
 def validate_config():
@@ -122,6 +124,8 @@ app.include_router(contacts_router)
 app.include_router(history_router)
 app.include_router(tracker_router)
 app.include_router(tracker_keys_router)
+app.include_router(assistant_router)
+app.include_router(hubspot_connection_router)
 
 
 @app.get("/", tags=["root"])

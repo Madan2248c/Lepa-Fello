@@ -7,21 +7,21 @@
   --sidebar-active: #3a4f63;
   --sidebar-hover: #354b5e;
   --sidebar-text: #b6c7d6;
-  --sidebar-muted: #7c98b6;
+  --sidebar-muted: #767676;
 
   /* Main content - HubSpot light */
-  --content-bg: #f5f8fa;
+  --content-bg: #F7F7F7;
   --content-card: #ffffff;
-  --content-border: #cbd6e2;
+  --content-border: #DDDDDD;
 
   /* Text */
-  --text-primary: #33475b;
-  --text-secondary: #516f90;
-  --text-muted: #7c98b6;
+  --text-primary: #484848;
+  --text-secondary: #767676;
+  --text-muted: #767676;
 
   /* Accent - HubSpot orange */
-  --accent-primary: #ff7a59;
-  --accent-hover: #ff5c35;
+  --accent-primary: #FF5A5F;
+  --accent-hover: #e0504a;
   --accent-muted: rgba(255, 122, 89, 0.12);
 
   /* Links - HubSpot teal */

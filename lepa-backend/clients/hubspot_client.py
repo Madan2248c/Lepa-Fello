@@ -41,6 +41,7 @@ async def upsert_company(
     recommended_action: str,
     persona_label: str,
     overall_confidence: float,
+    token: Optional[str] = None,
 ) -> HubSpotSyncResult:
     """
     Create or update a HubSpot Company record with LEPA intelligence.
@@ -70,9 +71,9 @@ async def upsert_company(
     Returns:
         HubSpotSyncResult with success status and external record ID.
     """
-    token = os.getenv("HUBSPOT_ACCESS_TOKEN")
+    token = token or os.getenv("HUBSPOT_ACCESS_TOKEN")
     if not token:
-        return HubSpotSyncResult(success=False, error="HUBSPOT_ACCESS_TOKEN not configured")
+        return HubSpotSyncResult(success=False, error="No HubSpot token configured")
 
     headers = {
         "Authorization": f"Bearer {token}",
@@ -223,11 +224,12 @@ async def upsert_contact(
     role: Optional[str],
     headline: Optional[str],
     about: Optional[str],
+    token: Optional[str] = None,
 ) -> HubSpotSyncResult:
     """Create or update a HubSpot Contact record."""
-    token = os.getenv("HUBSPOT_ACCESS_TOKEN")
+    token = token or os.getenv("HUBSPOT_ACCESS_TOKEN")
     if not token:
-        return HubSpotSyncResult(success=False, error="HUBSPOT_ACCESS_TOKEN not configured")
+        return HubSpotSyncResult(success=False, error="No HubSpot token configured")
 
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 

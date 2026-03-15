@@ -6,6 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import { useTenantId } from "@/hooks/useTenantId";
 import { apiFetch, AGENT_BASE } from "@/lib/api";
 import AnalysisPanel from "@/components/AnalysisPanel";
+import { TableSkeleton } from "@/components/Skeleton";
 
 interface Visitor {
   id: string;
@@ -29,6 +30,7 @@ export default function VisitorsPage() {
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [deepResearch, setDeepResearch] = useState<Record<string, unknown> | null>(null);
   const [deepLoading, setDeepLoading] = useState(false);
 
@@ -36,7 +38,8 @@ export default function VisitorsPage() {
     apiFetch("/analyze/visitors", tenantId)
       .then((r) => r.json())
       .then((data) => setVisitors(data.visitors || []))
-      .catch(() => setVisitors([]));
+      .catch(() => setVisitors([]))
+      .finally(() => setPageLoading(false));
   }, [tenantId]);
 
   useEffect(() => loadVisitors(), [loadVisitors]);
@@ -142,17 +145,17 @@ export default function VisitorsPage() {
   return (
     <div className="flex flex-col flex-1 min-w-0">
       {/* Tabs bar - HubSpot style */}
-      <div className="flex items-center border-b border-[#cbd6e2] bg-white px-4 py-0 min-h-[48px] mb-0">
-        <button className="flex items-center gap-1.5 px-3 py-3 text-[14px] text-[#33475b] font-medium border-b-2 border-[#ff7a59] -mb-px">
+      <div className="flex items-center border-b border-[#DDDDDD] bg-white px-4 py-0 min-h-[48px] mb-0">
+        <button className="flex items-center gap-1.5 px-3 py-3 text-[14px] text-[#484848] font-medium border-b-2 border-[#FF5A5F] -mb-px">
           <span>All visitors</span>
-          <span className="bg-[#ff7a59] text-white text-[11px] font-bold rounded-[3px] px-[6px] py-[1px] min-w-[18px] text-center">
+          <span className="bg-[#FF5A5F] text-white text-[11px] font-bold rounded-[3px] px-[6px] py-[1px] min-w-[18px] text-center">
             {filteredVisitors.length}
           </span>
         </button>
         <div className="flex-1" />
         <button
           onClick={() => setAddModalOpen(true)}
-          className="flex items-center gap-1.5 bg-[#ff7a59] hover:bg-[#ff5c35] text-white text-[14px] font-medium px-4 py-[7px] rounded-[4px] transition-colors"
+          className="flex items-center gap-1.5 bg-[#FF5A5F] hover:bg-[#e0504a] text-white text-[14px] font-medium px-4 py-[7px] rounded-[4px] transition-colors"
         >
           <Plus className="w-[14px] h-[14px]" />
           Add visitors
@@ -162,15 +165,15 @@ export default function VisitorsPage() {
       {/* Toolbar - HubSpot style */}
       <div className="bg-white px-4 pt-4 pb-0">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex items-center border border-[#cbd6e2] rounded-[4px] px-3 py-[6px] w-[280px] bg-white">
+          <div className="flex items-center border border-[#DDDDDD] rounded-[4px] px-3 py-[6px] w-[280px] bg-white">
             <input
               type="text"
               placeholder="Search"
-              className="flex-1 text-[14px] text-[#33475b] placeholder-[#516f90] outline-none bg-transparent"
+              className="flex-1 text-[14px] text-[#484848] placeholder-[#767676] outline-none bg-transparent"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <Search className="w-[14px] h-[14px] text-[#516f90] flex-shrink-0" />
+            <Search className="w-[14px] h-[14px] text-[#767676] flex-shrink-0" />
           </div>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
@@ -196,7 +199,7 @@ export default function VisitorsPage() {
                 a.download = "visitors.csv";
                 a.click();
               }}
-              className="flex items-center gap-1.5 px-3 py-[6px] border border-[#cbd6e2] rounded-[4px] text-[13px] text-[#33475b] hover:bg-[#f5f8fa] transition-colors"
+              className="flex items-center gap-1.5 px-3 py-[6px] border border-[#DDDDDD] rounded-[4px] text-[13px] text-[#484848] hover:bg-[#F7F7F7] transition-colors"
             >
               Export CSV
             </button>
@@ -206,13 +209,15 @@ export default function VisitorsPage() {
 
       {/* Table - HubSpot style */}
       <div className="flex-1 flex flex-col bg-white overflow-hidden">
-        {filteredVisitors.length === 0 ? (
+        {pageLoading ? (
+          <TableSkeleton rows={10} cols={6} />
+        ) : filteredVisitors.length === 0 ? (
           <div className="text-center py-16">
-            <Users className="w-14 h-14 text-[#7c98b6] mx-auto mb-4" />
-            <p className="text-[#516f90] mb-4">No visitors yet</p>
+            <Users className="w-14 h-14 text-[#767676] mx-auto mb-4" />
+            <p className="text-[#767676] mb-4">No visitors yet</p>
             <button
               onClick={() => setAddModalOpen(true)}
-              className="inline-block px-5 py-2.5 bg-[#ff7a59] text-white text-sm font-medium rounded-[4px] hover:bg-[#ff5c35]"
+              className="inline-block px-5 py-2.5 bg-[#FF5A5F] text-white text-sm font-medium rounded-[4px] hover:bg-[#e0504a]"
             >
               Add your first visitor
             </button>
@@ -222,21 +227,21 @@ export default function VisitorsPage() {
             <div className="flex-1 overflow-x-auto">
               <table className="w-full min-w-[900px]">
                 <thead>
-                  <tr className="bg-[#f5f8fa] border-y border-[#cbd6e2]">
+                  <tr className="bg-[#F7F7F7] border-y border-[#DDDDDD]">
                     <th className="w-[44px] px-3 py-2.5">
                       <input
                         type="checkbox"
                         checked={allPageSelected}
                         onChange={toggleSelectAll}
-                        className="w-[16px] h-[16px] rounded border-[#cbd6e2] accent-[#ff7a59]"
+                        className="w-[16px] h-[16px] rounded border-[#DDDDDD] accent-[#FF5A5F]"
                       />
                     </th>
-                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#33475b] tracking-wide">IP Address</th>
-                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#33475b] tracking-wide">Pages Visited</th>
-                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#33475b] tracking-wide">Time on Site</th>
-                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#33475b] tracking-wide">Visits This Week</th>
-                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#33475b] tracking-wide">Referral Source</th>
-                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#33475b] tracking-wide">Added</th>
+                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#484848] tracking-wide">IP Address</th>
+                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#484848] tracking-wide">Pages Visited</th>
+                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#484848] tracking-wide">Time on Site</th>
+                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#484848] tracking-wide">Visits This Week</th>
+                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#484848] tracking-wide">Referral Source</th>
+                    <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#484848] tracking-wide">Added</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -244,14 +249,14 @@ export default function VisitorsPage() {
                     <tr
                       key={visitor.id}
                       onClick={() => handleRowClick(visitor)}
-                      className="border-b border-[#cbd6e2] hover:bg-[#f5f8fa] transition-colors cursor-pointer"
+                      className="border-b border-[#DDDDDD] hover:bg-[#F7F7F7] transition-colors cursor-pointer"
                     >
                       <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selected.has(visitor.id)}
                           onChange={() => toggleSelect(visitor.id)}
-                          className="w-[16px] h-[16px] rounded border-[#cbd6e2] accent-[#ff7a59]"
+                          className="w-[16px] h-[16px] rounded border-[#DDDDDD] accent-[#FF5A5F]"
                         />
                       </td>
                       <td className="px-3 py-2.5">
@@ -259,23 +264,23 @@ export default function VisitorsPage() {
                           {visitor.ip_address}
                         </a>
                       </td>
-                      <td className="px-3 py-2.5 text-[14px] text-[#33475b] max-w-[200px] truncate">{visitor.pages_visited || "—"}</td>
-                      <td className="px-3 py-2.5 text-[14px] text-[#33475b]">{visitor.time_on_site_seconds != null ? `${visitor.time_on_site_seconds}s` : "—"}</td>
-                      <td className="px-3 py-2.5 text-[14px] text-[#33475b]">{visitor.visits_this_week ?? "—"}</td>
-                      <td className="px-3 py-2.5 text-[14px] text-[#33475b]">{visitor.referral_source || "—"}</td>
-                      <td className="px-3 py-2.5 text-[14px] text-[#33475b]">{new Date(visitor.created_at).toLocaleDateString()}</td>
+                      <td className="px-3 py-2.5 text-[14px] text-[#484848] max-w-[200px] truncate">{visitor.pages_visited || "—"}</td>
+                      <td className="px-3 py-2.5 text-[14px] text-[#484848]">{visitor.time_on_site_seconds != null ? `${visitor.time_on_site_seconds}s` : "—"}</td>
+                      <td className="px-3 py-2.5 text-[14px] text-[#484848]">{visitor.visits_this_week ?? "—"}</td>
+                      <td className="px-3 py-2.5 text-[14px] text-[#484848]">{visitor.referral_source || "—"}</td>
+                      <td className="px-3 py-2.5 text-[14px] text-[#484848]">{new Date(visitor.created_at).toLocaleDateString()}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             {/* Pagination */}
-            <div className="flex items-center justify-center gap-2 py-4 border-t border-[#cbd6e2]">
-              <button className="flex items-center gap-1 text-[14px] text-[#516f90] hover:text-[#33475b] transition-colors">Prev</button>
-              <span className="w-[28px] h-[28px] flex items-center justify-center border border-[#cbd6e2] rounded-[4px] text-[14px] text-[#33475b] font-medium bg-white">1</span>
-              <button className="flex items-center gap-1 text-[14px] text-[#516f90] hover:text-[#33475b] transition-colors">Next</button>
+            <div className="flex items-center justify-center gap-2 py-4 border-t border-[#DDDDDD]">
+              <button className="flex items-center gap-1 text-[14px] text-[#767676] hover:text-[#484848] transition-colors">Prev</button>
+              <span className="w-[28px] h-[28px] flex items-center justify-center border border-[#DDDDDD] rounded-[4px] text-[14px] text-[#484848] font-medium bg-white">1</span>
+              <button className="flex items-center gap-1 text-[14px] text-[#767676] hover:text-[#484848] transition-colors">Next</button>
               <div className="ml-4" />
-              <button className="flex items-center gap-1 text-[14px] text-[#33475b] hover:bg-[#f5f8fa] px-2 py-1 rounded transition-colors">25 per page</button>
+              <button className="flex items-center gap-1 text-[14px] text-[#484848] hover:bg-[#F7F7F7] px-2 py-1 rounded transition-colors">25 per page</button>
             </div>
           </>
         )}
@@ -328,46 +333,46 @@ function AddVisitorModal({ onClose, onAdd }: { onClose: () => void; onAdd: (data
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-          <h2 className="text-lg font-semibold text-[#33475b] mb-4">Add Visitor</h2>
+          <h2 className="text-lg font-semibold text-[#484848] mb-4">Add Visitor</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#33475b] mb-1.5">IP Address *</label>
+              <label className="block text-sm font-medium text-[#484848] mb-1.5">IP Address *</label>
               <input
                 type="text"
                 required
-                className="w-full border border-[#cbd6e2] rounded-[4px] px-3 py-2 text-[#33475b] focus:border-[#ff7a59] focus:ring-1 focus:ring-[#ff7a59]/30"
+                className="w-full border border-[#DDDDDD] rounded-[4px] px-3 py-2 text-[#484848] focus:border-[#FF5A5F] focus:ring-1 focus:ring-[#FF5A5F]/30"
                 value={ip}
                 onChange={(e) => setIp(e.target.value)}
                 placeholder="104.28.45.123"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#33475b] mb-1.5">Pages Visited</label>
+              <label className="block text-sm font-medium text-[#484848] mb-1.5">Pages Visited</label>
               <input
                 type="text"
-                className="w-full border border-[#cbd6e2] rounded-[4px] px-3 py-2 text-[#33475b] focus:border-[#ff7a59] focus:ring-1 focus:ring-[#ff7a59]/30"
+                className="w-full border border-[#DDDDDD] rounded-[4px] px-3 py-2 text-[#484848] focus:border-[#FF5A5F] focus:ring-1 focus:ring-[#FF5A5F]/30"
                 value={pages}
                 onChange={(e) => setPages(e.target.value)}
                 placeholder="/pricing, /docs, /case-studies"
               />
-              <p className="text-xs text-[#516f90] mt-1">Comma-separated</p>
+              <p className="text-xs text-[#767676] mt-1">Comma-separated</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-[#33475b] mb-1.5">Time on Site (sec)</label>
+                <label className="block text-sm font-medium text-[#484848] mb-1.5">Time on Site (sec)</label>
                 <input
                   type="number"
-                  className="w-full border border-[#cbd6e2] rounded-[4px] px-3 py-2 text-[#33475b] focus:border-[#ff7a59] focus:ring-1 focus:ring-[#ff7a59]/30"
+                  className="w-full border border-[#DDDDDD] rounded-[4px] px-3 py-2 text-[#484848] focus:border-[#FF5A5F] focus:ring-1 focus:ring-[#FF5A5F]/30"
                   value={timeOnSite}
                   onChange={(e) => setTimeOnSite(e.target.value)}
                   placeholder="300"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#33475b] mb-1.5">Visits This Week</label>
+                <label className="block text-sm font-medium text-[#484848] mb-1.5">Visits This Week</label>
                 <input
                   type="number"
-                  className="w-full border border-[#cbd6e2] rounded-[4px] px-3 py-2 text-[#33475b] focus:border-[#ff7a59] focus:ring-1 focus:ring-[#ff7a59]/30"
+                  className="w-full border border-[#DDDDDD] rounded-[4px] px-3 py-2 text-[#484848] focus:border-[#FF5A5F] focus:ring-1 focus:ring-[#FF5A5F]/30"
                   value={visitsThisWeek}
                   onChange={(e) => setVisitsThisWeek(e.target.value)}
                   placeholder="3"
@@ -375,10 +380,10 @@ function AddVisitorModal({ onClose, onAdd }: { onClose: () => void; onAdd: (data
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#33475b] mb-1.5">Referral Source</label>
+              <label className="block text-sm font-medium text-[#484848] mb-1.5">Referral Source</label>
               <input
                 type="text"
-                className="w-full border border-[#cbd6e2] rounded-[4px] px-3 py-2 text-[#33475b] focus:border-[#ff7a59] focus:ring-1 focus:ring-[#ff7a59]/30"
+                className="w-full border border-[#DDDDDD] rounded-[4px] px-3 py-2 text-[#484848] focus:border-[#FF5A5F] focus:ring-1 focus:ring-[#FF5A5F]/30"
                 value={referral}
                 onChange={(e) => setReferral(e.target.value)}
                 placeholder="google, linkedin, direct"
@@ -388,13 +393,13 @@ function AddVisitorModal({ onClose, onAdd }: { onClose: () => void; onAdd: (data
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-4 py-2 border border-[#cbd6e2] text-[#33475b] rounded-[4px] hover:bg-[#f5f8fa]"
+                className="flex-1 px-4 py-2 border border-[#DDDDDD] text-[#484848] rounded-[4px] hover:bg-[#F7F7F7]"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-[#ff7a59] text-white rounded-[4px] hover:bg-[#ff5c35]"
+                className="flex-1 px-4 py-2 bg-[#FF5A5F] text-white rounded-[4px] hover:bg-[#e0504a]"
               >
                 Add
               </button>

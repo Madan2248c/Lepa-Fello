@@ -1,22 +1,23 @@
+"use client";
+
+import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import AssistantSidebar from "@/components/AssistantSidebar";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [assistantOpen, setAssistantOpen] = useState(false);
+
   return (
-    <div className="flex h-screen bg-[#f5f8fa] text-[#33475b] overflow-hidden">
+    <div className="flex h-screen bg-[#F7F7F7] text-[#484848] overflow-hidden">
       <Sidebar />
-      <div className="flex flex-col flex-1 relative min-w-0 bg-[#f5f8fa]">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 relative z-10 w-full bg-[#f5f8fa]">
-          <div className="mx-auto max-w-7xl h-full">
-            {children}
-          </div>
+      <div className="flex flex-col flex-1 min-w-0">
+        <Header onToggleAssistant={() => setAssistantOpen(o => !o)} assistantOpen={assistantOpen} />
+        <main className="flex-1 overflow-y-auto w-full bg-[#F7F7F7]">
+          {children}
         </main>
       </div>
+      <AssistantSidebar open={assistantOpen} onClose={() => setAssistantOpen(false)} />
     </div>
   );
 }

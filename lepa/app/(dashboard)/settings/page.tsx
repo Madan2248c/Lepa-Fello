@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Settings as SettingsIcon, User, Plus, X, Briefcase } from "lucide-react";
+import { Save, Settings as SettingsIcon, User, Plus, X, Briefcase, Link, CheckCircle } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useTenantId } from "@/hooks/useTenantId";
 import { apiFetch } from "@/lib/api";
@@ -39,6 +39,10 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [savedBusiness, setSavedBusiness] = useState(false);
+  const [hsToken, setHsToken] = useState("");
+  const [hsConnected, setHsConnected] = useState(false);
+  const [hsPreview, setHsPreview] = useState("");
+  const [hsSaving, setHsSaving] = useState(false);
 
   useEffect(() => {
     apiFetch("/icp", tenantId)
@@ -49,6 +53,11 @@ export default function SettingsPage() {
     apiFetch("/business-profile", tenantId)
       .then((res) => res.ok ? res.json() : null)
       .then((data) => { if (data?.profile) setBusiness(data.profile); })
+      .catch(() => {});
+
+    apiFetch("/hubspot/connection", tenantId)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data?.connected) { setHsConnected(true); setHsPreview(data.token_preview); } })
       .catch(() => {});
   }, [tenantId]);
 
@@ -88,93 +97,111 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveHubspot = async () => {
+    if (!hsToken.trim()) return;
+    setHsSaving(true);
+    try {
+      await apiFetch("/hubspot/connection", tenantId, { method: "POST", body: JSON.stringify({ access_token: hsToken }) });
+      setHsConnected(true);
+      setHsPreview(`${hsToken.slice(0, 8)}...${hsToken.slice(-4)}`);
+      setHsToken("");
+    } catch (e) { console.error(e); }
+    finally { setHsSaving(false); }
+  };
+
+  const handleDisconnectHubspot = async () => {
+    await apiFetch("/hubspot/connection", tenantId, { method: "DELETE" });
+    setHsConnected(false);
+    setHsPreview("");
+  };
+
   return (
     <div className="p-0 max-w-2xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#33475b] mb-1">Settings</h1>
-        <p className="text-sm text-[#516f90]">Configure your profile and ICP preferences</p>
+        <h1 className="text-2xl font-bold text-[#484848] mb-1">Settings</h1>
+        <p className="text-sm text-[#767676]">Configure your profile and ICP preferences</p>
       </div>
 
       <div className="space-y-6">
         {/* Profile */}
-        <div className="bg-white border border-[#cbd6e2] rounded-[4px] p-6">
+        <div className="bg-white border border-[#DDDDDD] rounded-[4px] p-6">
           <div className="flex items-center gap-3 mb-6">
-            <User className="w-6 h-6 text-[#ff7a59]" />
-            <h2 className="text-lg font-bold text-[#33475b]">Profile</h2>
+            <User className="w-6 h-6 text-[#FF5A5F]" />
+            <h2 className="text-lg font-bold text-[#484848]">Profile</h2>
           </div>
-          <div className="flex items-center gap-4 p-4 bg-[#f5f8fa] border border-[#cbd6e2] rounded-[4px]">
+          <div className="flex items-center gap-4 p-4 bg-[#F7F7F7] border border-[#DDDDDD] rounded-[4px]">
             {user?.imageUrl ? (
               <img src={user.imageUrl} alt="" className="w-14 h-14 rounded-full object-cover" />
             ) : (
-              <div className="w-14 h-14 rounded-full bg-[#cbd6e2] flex items-center justify-center text-[#516f90] text-lg font-medium">
+              <div className="w-14 h-14 rounded-full bg-[#DDDDDD] flex items-center justify-center text-[#767676] text-lg font-medium">
                 {(user?.firstName?.[0] || user?.primaryEmailAddress?.emailAddress?.[0] || "?").toUpperCase()}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-base font-semibold text-[#33475b] truncate">
+              <p className="text-base font-semibold text-[#484848] truncate">
                 {user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Loading..." : "Loading..."}
               </p>
-              <p className="text-sm text-[#516f90] truncate">{user?.primaryEmailAddress?.emailAddress || "—"}</p>
+              <p className="text-sm text-[#767676] truncate">{user?.primaryEmailAddress?.emailAddress || "—"}</p>
             </div>
           </div>
-          <p className="text-xs text-[#516f90] mt-3">Profile details are managed by Clerk.</p>
+          <p className="text-xs text-[#767676] mt-3">Profile details are managed by Clerk.</p>
         </div>
 
         {/* Your Business */}
-        <div className="bg-white border border-[#cbd6e2] rounded-[4px] p-6">
+        <div className="bg-white border border-[#DDDDDD] rounded-[4px] p-6">
           <div className="flex items-center gap-3 mb-6">
-            <Briefcase className="w-6 h-6 text-[#ff7a59]" />
+            <Briefcase className="w-6 h-6 text-[#FF5A5F]" />
             <div>
-              <h2 className="text-lg font-bold text-[#33475b]">Your Business</h2>
-              <p className="text-xs text-[#516f90] mt-0.5">Used to personalize outreach angles and recommended actions</p>
+              <h2 className="text-lg font-bold text-[#484848]">Your Business</h2>
+              <p className="text-xs text-[#767676] mt-0.5">Used to personalize outreach angles and recommended actions</p>
             </div>
           </div>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#33475b] mb-1.5">Business Name</label>
+              <label className="block text-sm font-medium text-[#484848] mb-1.5">Business Name</label>
               <input
                 type="text"
                 value={business.business_name}
                 onChange={(e) => setBusiness(p => ({ ...p, business_name: e.target.value }))}
                 placeholder="e.g., Acme Corp"
-                className="w-full border border-[#cbd6e2] rounded-[4px] px-3 py-2 text-sm focus:outline-none focus:border-[#ff7a59]"
+                className="w-full border border-[#DDDDDD] rounded-[4px] px-3 py-2 text-sm focus:outline-none focus:border-[#FF5A5F]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#33475b] mb-1.5">What do you sell?</label>
+              <label className="block text-sm font-medium text-[#484848] mb-1.5">What do you sell?</label>
               <input
                 type="text"
                 value={business.product_service}
                 onChange={(e) => setBusiness(p => ({ ...p, product_service: e.target.value }))}
                 placeholder="e.g., B2B sales intelligence platform"
-                className="w-full border border-[#cbd6e2] rounded-[4px] px-3 py-2 text-sm focus:outline-none focus:border-[#ff7a59]"
+                className="w-full border border-[#DDDDDD] rounded-[4px] px-3 py-2 text-sm focus:outline-none focus:border-[#FF5A5F]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#33475b] mb-1.5">Value Proposition</label>
+              <label className="block text-sm font-medium text-[#484848] mb-1.5">Value Proposition</label>
               <input
                 type="text"
                 value={business.value_proposition}
                 onChange={(e) => setBusiness(p => ({ ...p, value_proposition: e.target.value }))}
                 placeholder="e.g., Helps sales teams close 3x more deals with AI-powered insights"
-                className="w-full border border-[#cbd6e2] rounded-[4px] px-3 py-2 text-sm focus:outline-none focus:border-[#ff7a59]"
+                className="w-full border border-[#DDDDDD] rounded-[4px] px-3 py-2 text-sm focus:outline-none focus:border-[#FF5A5F]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#33475b] mb-1.5">Business Description</label>
+              <label className="block text-sm font-medium text-[#484848] mb-1.5">Business Description</label>
               <textarea
                 value={business.business_description}
                 onChange={(e) => setBusiness(p => ({ ...p, business_description: e.target.value }))}
                 placeholder="Brief description of your business, target market, and how you help customers..."
                 rows={3}
-                className="w-full border border-[#cbd6e2] rounded-[4px] px-3 py-2 text-sm focus:outline-none focus:border-[#ff7a59] resize-none"
+                className="w-full border border-[#DDDDDD] rounded-[4px] px-3 py-2 text-sm focus:outline-none focus:border-[#FF5A5F] resize-none"
               />
             </div>
             <div className="pt-2">
               <button
                 onClick={handleSaveBusiness}
                 disabled={savingBusiness}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#ff7a59] text-white font-medium rounded-[4px] hover:bg-[#ff5c35] disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#FF5A5F] text-white font-medium rounded-[4px] hover:bg-[#e0504a] disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
                 {savingBusiness ? "Saving..." : "Save Business Profile"}
@@ -185,10 +212,10 @@ export default function SettingsPage() {
         </div>
 
         {/* ICP */}
-        <div className="bg-white border border-[#cbd6e2] rounded-[4px] p-6">
+        <div className="bg-white border border-[#DDDDDD] rounded-[4px] p-6">
           <div className="flex items-center gap-3 mb-6">
-            <SettingsIcon className="w-6 h-6 text-[#ff7a59]" />
-            <h2 className="text-lg font-bold text-[#33475b]">Ideal Customer Profile (ICP)</h2>
+            <SettingsIcon className="w-6 h-6 text-[#FF5A5F]" />
+            <h2 className="text-lg font-bold text-[#484848]">Ideal Customer Profile (ICP)</h2>
           </div>
 
           <div className="space-y-6">
@@ -197,11 +224,11 @@ export default function SettingsPage() {
             <ICPSection title="Target Company Sizes" items={icp.target_company_sizes} onAdd={(v) => addItem("target_company_sizes", v)} onRemove={(i) => removeItem("target_company_sizes", i)} placeholder="e.g., 50-200 employees, Enterprise (1000+)" />
             <ICPSection title="Target Roles / Titles" items={icp.target_roles} onAdd={(v) => addItem("target_roles", v)} onRemove={(i) => removeItem("target_roles", i)} placeholder="e.g., CTO, VP Engineering, Head of Sales" />
 
-            <div className="pt-4 border-t border-[#cbd6e2]">
+            <div className="pt-4 border-t border-[#DDDDDD]">
               <button
                 onClick={handleSaveICP}
                 disabled={saving}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#ff7a59] text-white font-medium rounded-[4px] hover:bg-[#ff5c35] disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#FF5A5F] text-white font-medium rounded-[4px] hover:bg-[#e0504a] disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
                 {saving ? "Saving..." : "Save ICP Settings"}
@@ -209,6 +236,46 @@ export default function SettingsPage() {
               {saved && <p className="text-sm text-emerald-500 mt-2">✓ ICP settings saved</p>}
             </div>
           </div>
+        </div>
+
+        {/* HubSpot Integration */}
+        <div className="bg-white border border-[#DDDDDD] rounded-[4px] p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Link className="w-4 h-4 text-[#FF5A5F]" />
+            <h2 className="text-base font-semibold text-[#484848]">HubSpot Integration</h2>
+          </div>
+          {hsConnected ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-500" />
+                <span className="text-sm text-[#484848]">Connected — <span className="font-mono text-xs text-[#767676]">{hsPreview}</span></span>
+              </div>
+              <button onClick={handleDisconnectHubspot} className="text-sm text-[#FF5A5F] hover:underline">Disconnect</button>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm text-[#767676] mb-3">
+                Paste your HubSpot Private App token to enable pushing contacts and companies.{" "}
+                <a href="https://app.hubspot.com/private-apps" target="_blank" rel="noopener noreferrer" className="text-[#FF5A5F] hover:underline">Create one here →</a>
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={hsToken}
+                  onChange={(e) => setHsToken(e.target.value)}
+                  placeholder="pat-na1-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  className="flex-1 px-3 py-2 border border-[#DDDDDD] rounded-[4px] text-sm font-mono focus:outline-none focus:border-[#FF5A5F]"
+                />
+                <button
+                  onClick={handleSaveHubspot}
+                  disabled={hsSaving || !hsToken.trim()}
+                  className="bg-[#FF5A5F] hover:bg-[#e0504a] disabled:opacity-40 text-white px-4 py-2 rounded-[4px] text-sm font-medium"
+                >
+                  {hsSaving ? "Saving..." : "Connect"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -238,8 +305,8 @@ function ICPSection({ title, items, onAdd, onRemove, placeholder }: ICPSectionPr
   };
 
   return (
-    <div className="border border-[#cbd6e2] rounded-[4px] p-4">
-      <h4 className="text-sm font-semibold text-[#33475b] mb-3">{title}</h4>
+    <div className="border border-[#DDDDDD] rounded-[4px] p-4">
+      <h4 className="text-sm font-semibold text-[#484848] mb-3">{title}</h4>
       
       {/* Add new item */}
       <div className="flex gap-2 mb-3">
@@ -249,11 +316,11 @@ function ICPSection({ title, items, onAdd, onRemove, placeholder }: ICPSectionPr
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder={placeholder}
-          className="flex-1 px-3 py-2 border border-[#cbd6e2] rounded-[4px] text-sm focus:outline-none focus:border-[#ff7a59]"
+          className="flex-1 px-3 py-2 border border-[#DDDDDD] rounded-[4px] text-sm focus:outline-none focus:border-[#FF5A5F]"
         />
         <button
           onClick={handleAdd}
-          className="bg-[#ff7a59] hover:bg-[#ff5c35] text-white px-3 py-2 rounded-[4px] text-sm flex items-center gap-1"
+          className="bg-[#FF5A5F] hover:bg-[#e0504a] text-white px-3 py-2 rounded-[4px] text-sm flex items-center gap-1"
         >
           <Plus className="w-4 h-4" />
           Add
@@ -265,19 +332,19 @@ function ICPSection({ title, items, onAdd, onRemove, placeholder }: ICPSectionPr
         {items.map((item, index) => (
           <div
             key={index}
-            className="bg-[#f5f8fa] border border-[#cbd6e2] rounded-[4px] px-3 py-1 text-sm flex items-center gap-2"
+            className="bg-[#F7F7F7] border border-[#DDDDDD] rounded-[4px] px-3 py-1 text-sm flex items-center gap-2"
           >
             <span>{item}</span>
             <button
               onClick={() => onRemove(index)}
-              className="text-[#516f90] hover:text-[#ff7a59] transition-colors"
+              className="text-[#767676] hover:text-[#FF5A5F] transition-colors"
             >
               <X className="w-3 h-3" />
             </button>
           </div>
         ))}
         {items.length === 0 && (
-          <p className="text-[#7c98b6] text-sm italic">No items added yet</p>
+          <p className="text-[#767676] text-sm italic">No items added yet</p>
         )}
       </div>
     </div>

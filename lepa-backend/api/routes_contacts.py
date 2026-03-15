@@ -12,11 +12,12 @@ router = APIRouter(prefix="/contacts", tags=["contacts"])
 @router.get("")
 async def get_contacts(
     limit: int = Query(default=200, le=500),
+    search: str | None = Query(default=None),
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
 ):
     tenant_id = x_tenant_id or "default"
     from clients.db_client import list_contacts
-    contacts = await list_contacts(tenant_id, limit)
+    contacts = await list_contacts(tenant_id, limit, search=search)
     return {
         "total": len(contacts),
         "contacts": [_serialize(c) for c in contacts],
@@ -86,6 +87,7 @@ async def push_to_hubspot(
     tenant_id = x_tenant_id or "default"
     from clients.db_client import get_contact, update_contact_hubspot
     from clients.hubspot_client import upsert_contact
+    from api.routes_hubspot_connection import get_hs_token
 
     contact = await get_contact(tenant_id, contact_id)
     if not contact:
@@ -101,6 +103,7 @@ async def push_to_hubspot(
         role=contact.get("role"),
         headline=contact.get("linkedin_headline"),
         about=contact.get("linkedin_about"),
+        token=await get_hs_token(tenant_id),
     )
 
     if result.success and result.external_id:
@@ -122,7 +125,10 @@ async def bulk_push_hubspot(
     tenant_id = x_tenant_id or "default"
     from clients.db_client import get_contact, update_contact_hubspot
     from clients.hubspot_client import upsert_contact
+    from api.routes_hubspot_connection import get_hs_token
     import asyncio
+
+    hs_token = await get_hs_token(tenant_id)
 
     async def push_one(contact_id: int):
         contact = await get_contact(tenant_id, contact_id)
@@ -133,6 +139,7 @@ async def bulk_push_hubspot(
             company_name=contact.get("company_name", ""), company_domain=contact.get("company_domain", ""),
             linkedin_url=contact.get("source_url"), role=contact.get("role"),
             headline=contact.get("linkedin_headline"), about=contact.get("linkedin_about"),
+            token=hs_token,
         )
         if result.success and result.external_id:
             await update_contact_hubspot(tenant_id, contact_id, result.external_id)

@@ -241,6 +241,37 @@ async def get_stats(
                 "cached_at": r["created_at"].isoformat() if r["created_at"] else None,
                 "input_type": r["input_type"],
             })
+
+        # Top accounts by intent score
+        top_rows = await conn.fetch("""
+            SELECT DISTINCT ON (account_id)
+                account_id,
+                result_json->>'account_name' as account_name,
+                (result_json->'intent'->>'score')::float as intent_score,
+                result_json->'intent'->>'stage' as intent_stage
+            FROM pipeline_runs WHERE tenant_id = $1
+              AND result_json->'intent'->>'score' IS NOT NULL
+            ORDER BY account_id, created_at DESC
+        """, tenant_id)
+        top_accounts = sorted(
+            [dict(r) for r in top_rows if r["intent_score"]],
+            key=lambda x: x["intent_score"] or 0, reverse=True
+        )[:8]
+
+        # Intent stage distribution
+        stage_rows = await conn.fetch("""
+            SELECT result_json->'intent'->>'stage' as stage, COUNT(*) as cnt
+            FROM pipeline_runs WHERE tenant_id = $1
+              AND result_json->'intent'->>'stage' IS NOT NULL
+            GROUP BY stage
+        """, tenant_id)
+        intent_distribution = {r["stage"]: r["cnt"] for r in stage_rows}
+
+        # Contacts count
+        contacts_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM contacts WHERE tenant_id = $1", tenant_id
+        )
+
     finally:
         await conn.close()
 
@@ -249,8 +280,11 @@ async def get_stats(
             "total": sum(counts.values()),
             "visitors": counts.get("visitor_signal", 0),
             "companies": counts.get("company_seed", 0),
+            "contacts": contacts_count or 0,
         },
         "recent_results": recent,
+        "top_accounts": top_accounts,
+        "intent_distribution": intent_distribution,
     }
 
 
@@ -266,6 +300,7 @@ async def push_company_to_hubspot(
     tenant_id = x_tenant_id or "default"
     from clients.db_client import get_cached_result as db_get_cached
     from clients.hubspot_client import upsert_company
+    from api.routes_hubspot_connection import get_hs_token
 
     result = await db_get_cached(tenant_id, body.account_id)
     if not result:
@@ -288,6 +323,7 @@ async def push_company_to_hubspot(
         recommended_action=(result.get("recommendations") or [{}])[0].get("action", "") if result.get("recommendations") else "",
         persona_label=icp.get("persona") or icp.get("label") or "",
         overall_confidence=float(result.get("confidence") or 0),
+        token=await get_hs_token(tenant_id),
     )
 
     return {"success": hs.success, "hubspot_id": hs.external_id, "action": hs.action, "error": hs.error}
