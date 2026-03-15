@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tracker Test</title>
+  <script async src="http://localhost:3000/tracker.js?key=lpk_WYD8U5BJOm2pYR4MWBU8BiPote_CWx3G&endpoint=http://localhost:8000"></script>
+</head>
+<body>
+  <h1>Tracker Test Page</h1>
+  <p>Open the network tab — you should see a POST to <code>http://localhost:8000/track</code> within 4 seconds.</p>
+
+  <nav style="margin-top: 20px; display: flex; gap: 12px;">
+    <a href="#page-1" onclick="history.pushState({}, '', '/test-page-1')">Go to Page 1</a>
+    <a href="#page-2" onclick="history.pushState({}, '', '/test-page-2')">Go to Page 2</a>
+    <a href="#page-3" onclick="history.pushState({}, '', '/test-page-3')">Go to Page 3</a>
+  </nav>
+  <p style="margin-top: 12px; color: #666; font-size: 14px;">Click the links above to simulate SPA navigation — each click should fire a new pageview event.</p>
+</body>
+</html>

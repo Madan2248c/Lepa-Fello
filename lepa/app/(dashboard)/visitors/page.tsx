@@ -23,6 +23,7 @@ export default function VisitorsPage() {
   const senderName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "";
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
@@ -46,6 +47,16 @@ export default function VisitorsPage() {
       v.pages_visited.toLowerCase().includes(search.toLowerCase()) ||
       v.referral_source.toLowerCase().includes(search.toLowerCase())
   );
+
+  const allPageSelected = filteredVisitors.length > 0 && filteredVisitors.every((v) => selected.has(v.id));
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  const toggleSelectAll = () =>
+    setSelected(allPageSelected ? new Set() : new Set(filteredVisitors.map((v) => v.id)));
 
   const handleAdd = async (data: Partial<Visitor>) => {
     await apiFetch("/analyze/visitors", tenantId, {
@@ -165,16 +176,25 @@ export default function VisitorsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
+                const toExport = selected.size > 0
+                  ? filteredVisitors.filter((v) => selected.has(v.id))
+                  : filteredVisitors;
                 const rows = [["IP Address","Pages Visited","Time on Site (s)","Visits This Week","Referral Source","Added"]];
-                filteredVisitors.forEach(v => rows.push([
-                  v.ip_address, v.pages_visited,
-                  String(v.time_on_site_seconds??""), String(v.visits_this_week??""),
-                  v.referral_source, v.created_at
-                ]));
-                const csv = rows.map(r => r.map(v => `"${v.replace(/"/g,'""')}"`).join(",")).join("\n");
+                toExport.forEach((v) =>
+                  rows.push([
+                    v.ip_address,
+                    v.pages_visited,
+                    String(v.time_on_site_seconds ?? ""),
+                    String(v.visits_this_week ?? ""),
+                    v.referral_source,
+                    v.created_at,
+                  ])
+                );
+                const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
                 const a = document.createElement("a");
-                a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
-                a.download = "visitors.csv"; a.click();
+                a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+                a.download = "visitors.csv";
+                a.click();
               }}
               className="flex items-center gap-1.5 px-3 py-[6px] border border-[#cbd6e2] rounded-[4px] text-[13px] text-[#33475b] hover:bg-[#f5f8fa] transition-colors"
             >
@@ -204,7 +224,12 @@ export default function VisitorsPage() {
                 <thead>
                   <tr className="bg-[#f5f8fa] border-y border-[#cbd6e2]">
                     <th className="w-[44px] px-3 py-2.5">
-                      <input type="checkbox" className="w-[16px] h-[16px] rounded border-[#cbd6e2] accent-[#ff7a59]" />
+                      <input
+                        type="checkbox"
+                        checked={allPageSelected}
+                        onChange={toggleSelectAll}
+                        className="w-[16px] h-[16px] rounded border-[#cbd6e2] accent-[#ff7a59]"
+                      />
                     </th>
                     <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#33475b] tracking-wide">IP Address</th>
                     <th className="text-left px-3 py-2.5 text-[12px] font-semibold text-[#33475b] tracking-wide">Pages Visited</th>
@@ -222,7 +247,12 @@ export default function VisitorsPage() {
                       className="border-b border-[#cbd6e2] hover:bg-[#f5f8fa] transition-colors cursor-pointer"
                     >
                       <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" className="w-[16px] h-[16px] rounded border-[#cbd6e2] accent-[#ff7a59]" />
+                        <input
+                          type="checkbox"
+                          checked={selected.has(visitor.id)}
+                          onChange={() => toggleSelect(visitor.id)}
+                          className="w-[16px] h-[16px] rounded border-[#cbd6e2] accent-[#ff7a59]"
+                        />
                       </td>
                       <td className="px-3 py-2.5">
                         <a href="#" onClick={(e) => { e.preventDefault(); handleRowClick(visitor); }} className="text-[14px] text-[#0091ae] hover:underline">

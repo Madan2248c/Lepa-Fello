@@ -324,3 +324,108 @@ async def list_visitors(tenant_id: str, limit: int = 200) -> list[dict]:
         ]
     finally:
         await conn.close()
+
+
+# ── Tracker API keys ──────────────────────────────────────────────────────────
+
+async def get_tenant_by_api_key(api_key: str) -> Optional[str]:
+    conn = await _connect()
+    try:
+        row = await conn.fetchrow(
+            "SELECT tenant_id FROM tracker_keys WHERE api_key = $1 AND active = TRUE",
+            api_key,
+        )
+        return row["tenant_id"] if row else None
+    finally:
+        await conn.close()
+
+
+async def create_tracker_key(tenant_id: str, api_key: str, label: str = "default") -> None:
+    conn = await _connect()
+    try:
+        await conn.execute("""
+            INSERT INTO tracker_keys (tenant_id, api_key, label)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (api_key) DO NOTHING
+        """, tenant_id, api_key, label)
+    finally:
+        await conn.close()
+
+
+async def list_tracker_keys(tenant_id: str) -> list[dict]:
+    conn = await _connect()
+    try:
+        rows = await conn.fetch(
+            "SELECT api_key, label, active, created_at FROM tracker_keys WHERE tenant_id = $1 ORDER BY created_at DESC",
+            tenant_id,
+        )
+        return [{**dict(r), "created_at": r["created_at"].isoformat()} for r in rows]
+    finally:
+        await conn.close()
+
+
+# ── Tracker events ────────────────────────────────────────────────────────────
+
+async def upsert_tracked_visitor(tenant_id: str, vid: str, ip: str, user_agent: str, active_ms: int = 0) -> None:
+    conn = await _connect()
+    try:
+        await conn.execute("""
+            INSERT INTO tracked_visitors (tenant_id, vid, ip_address, user_agent, total_active_ms, last_seen_at)
+            VALUES ($1, $2, $3, $4, $5, NOW())
+            ON CONFLICT (tenant_id, vid) DO UPDATE
+              SET ip_address = EXCLUDED.ip_address,
+                  user_agent = EXCLUDED.user_agent,
+                  last_seen_at = NOW(),
+                  visit_count = tracked_visitors.visit_count + 1,
+                  total_active_ms = GREATEST(tracked_visitors.total_active_ms, $5)
+        """, tenant_id, vid, ip, user_agent, active_ms)
+    finally:
+        await conn.close()
+
+
+async def insert_tracker_events(tenant_id: str, vid: str, sid: str, events: list[dict]) -> None:
+    conn = await _connect()
+    try:
+        await conn.executemany("""
+            INSERT INTO tracker_events (tenant_id, vid, sid, event_type, url, referrer, active_ms)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        """, [
+            (
+                tenant_id, vid, sid,
+                e.get("type", "pageview"),
+                e.get("url", ""),
+                e.get("ref", ""),
+                e.get("active_ms"),
+            )
+            for e in events
+        ])
+    finally:
+        await conn.close()
+
+
+async def list_tracked_visitors(tenant_id: str, limit: int = 200) -> list[dict]:
+    conn = await _connect()
+    try:
+        rows = await conn.fetch("""
+            SELECT
+                tv.vid, tv.ip_address, tv.user_agent, tv.visit_count,
+                tv.total_active_ms, tv.last_seen_at,
+                COUNT(te.id) AS event_count,
+                array_agg(DISTINCT te.url ORDER BY te.url) FILTER (WHERE te.url IS NOT NULL AND te.url != '') AS pages
+            FROM tracked_visitors tv
+            LEFT JOIN tracker_events te ON te.tenant_id = tv.tenant_id AND te.vid = tv.vid
+            WHERE tv.tenant_id = $1
+            GROUP BY tv.vid, tv.ip_address, tv.user_agent, tv.visit_count, tv.total_active_ms, tv.last_seen_at
+            ORDER BY tv.last_seen_at DESC
+            LIMIT $2
+        """, tenant_id, limit)
+        return [
+            {
+                **dict(r),
+                "last_seen_at": r["last_seen_at"].isoformat(),
+                "pages": list(r["pages"] or []),
+            }
+            for r in rows
+        ]
+    finally:
+        await conn.close()

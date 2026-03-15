@@ -28,6 +28,8 @@ from api.routes_crm import router as crm_router
 from api.routes_icp import router as icp_router
 from api.routes_contacts import router as contacts_router
 from api.routes_history import router as history_router
+from api.routes_tracker import router as tracker_router
+from api.routes_tracker_keys import router as tracker_keys_router
 
 
 def validate_config():
@@ -104,15 +106,13 @@ AI-powered account intelligence and enrichment system for sales teams.
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=86400,
 )
+
 
 app.include_router(analyze_router)
 app.include_router(batch_router)
@@ -120,6 +120,8 @@ app.include_router(crm_router)
 app.include_router(icp_router)
 app.include_router(contacts_router)
 app.include_router(history_router)
+app.include_router(tracker_router)
+app.include_router(tracker_keys_router)
 
 
 @app.get("/", tags=["root"])

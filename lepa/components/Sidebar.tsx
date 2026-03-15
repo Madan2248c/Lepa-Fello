@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Settings, Building2, Users, Contact } from "lucide-react";
+import { LayoutDashboard, Settings, Building2, Users, Contact, Code2 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
 const navigation = [
@@ -10,6 +10,7 @@ const navigation = [
   { name: "Visitors", href: "/visitors", icon: Users },
   { name: "Companies", href: "/companies", icon: Building2 },
   { name: "Contacts", href: "/contacts", icon: Contact },
+  { name: "Tracking", href: "/tracking", icon: Code2 },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
