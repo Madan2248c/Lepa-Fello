@@ -75,3 +75,17 @@ def get_cache_stats(tenant_id: str) -> Dict[str, int]:
         "visitors": len([r for r in results if r["input_type"] == "visitor"]),
         "companies": len([r for r in results if r["input_type"] == "company"]),
     }
+
+
+def clear_cache(tenant_id: Optional[str] = None) -> int:
+    """Clear cache for a specific tenant or all tenants. Returns number of entries cleared."""
+    global _cache
+    if tenant_id:
+        keys_to_delete = [k for k, v in _cache.items() if v["tenant_id"] == tenant_id]
+        for k in keys_to_delete:
+            del _cache[k]
+        return len(keys_to_delete)
+    else:
+        count = len(_cache)
+        _cache.clear()
+        return count

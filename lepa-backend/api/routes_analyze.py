@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from schemas.input_models import VisitorSignalInput, CompanySeedInput
 from schemas.output_models import AnalyzeResponse
-from services.result_cache import store_result, get_cached_result, list_cached_results, get_cache_stats
+from services.result_cache import store_result, get_cached_result, list_cached_results, get_cache_stats, clear_cache
 
 logger = logging.getLogger("lepa.api")
 
@@ -51,19 +51,12 @@ async def analyze_visitor(
 
     tenant_id = x_tenant_id or "default"
 
-    # Check in-memory cache first (same server session)
-    cached = get_cached_result(tenant_id, "visitor", input_data.model_dump())
-    if cached:
-        logger.info(f"Returning in-memory cached result for visitor: {input_data.visitor_id}")
-        return JSONResponse(content=cached)
-
     # Look up the account_id previously resolved for this visitor (stored in DB)
     account_id = await get_visitor_account_id(tenant_id, input_data.visitor_id)
     if account_id:
         db_cached = await db_get_cached(tenant_id, account_id)
         if db_cached:
             logger.info(f"Returning DB cached result for visitor: {input_data.visitor_id} -> {account_id}")
-            store_result(tenant_id, "visitor", input_data.model_dump(), db_cached)
             return JSONResponse(content=db_cached)
 
     start_time = time.time()
@@ -71,9 +64,6 @@ async def analyze_visitor(
 
     try:
         result = await run_visitor_pipeline(input_data, tenant_id=tenant_id)
-
-        # Store result in cache
-        store_result(tenant_id, "visitor", input_data.model_dump(), result.model_dump())
 
         # Link visitor_id -> resolved account_id so future requests hit DB cache
         if result.domain or result.account_name:
@@ -139,12 +129,6 @@ async def analyze_company(
 
     tenant_id = x_tenant_id or "default"
 
-    # Check in-memory cache first
-    cached = get_cached_result(tenant_id, "company", input_data.model_dump())
-    if cached:
-        logger.info(f"Returning in-memory cached result for company: {input_data.company_name}")
-        return JSONResponse(content=cached)
-
     # Derive account_id the same way history.py does: domain > normalized name
     if input_data.partial_domain:
         account_id = input_data.partial_domain.lower().replace("www.", "").strip("/")
@@ -155,7 +139,6 @@ async def analyze_company(
     db_cached = await db_get_cached(tenant_id, account_id)
     if db_cached:
         logger.info(f"Returning DB cached result for company: {input_data.company_name}")
-        store_result(tenant_id, "company", input_data.model_dump(), db_cached)
         return JSONResponse(content=db_cached)
 
     start_time = time.time()
@@ -163,9 +146,6 @@ async def analyze_company(
 
     try:
         result = await run_company_pipeline(input_data, tenant_id=tenant_id)
-        
-        # Store result in cache
-        store_result(tenant_id, "company", input_data.model_dump(), result.model_dump())
         
         elapsed = time.time() - start_time
         logger.info(
@@ -298,6 +278,20 @@ async def push_company_to_hubspot(
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
 ):
     tenant_id = x_tenant_id or "default"
+
+
+@router.delete(
+    "/cache",
+    summary="Clear analysis cache",
+    description="Clear the in-memory analysis cache for the current tenant or all tenants.",
+)
+async def clear_analysis_cache(
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+):
+    """Clear the in-memory analysis cache."""
+    tenant_id = x_tenant_id or "default"
+    cleared = clear_cache(tenant_id)
+    return {"success": True, "cleared": cleared, "message": f"Cleared {cleared} cached results"}
     from clients.db_client import get_cached_result as db_get_cached
     from clients.hubspot_client import upsert_company
     from api.routes_hubspot_connection import get_hs_token
