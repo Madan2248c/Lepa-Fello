@@ -47,6 +47,7 @@ class BatchItemResult:
 async def run_batch(
     items: list[Union[CompanySeedInput, VisitorSignalInput]],
     batch_id: str | None = None,
+    tenant_id: str = "default",
 ) -> tuple[BatchRun, list[BatchItemResult]]:
     """
     Process a list of company seeds or visitor signals as a batch.
@@ -86,9 +87,9 @@ async def run_batch(
 
             try:
                 if isinstance(item, CompanySeedInput):
-                    result = await run_company_pipeline(item)
+                    result = await run_company_pipeline(item, tenant_id=tenant_id)
                 else:
-                    result = await run_visitor_pipeline(item)
+                    result = await run_visitor_pipeline(item, tenant_id=tenant_id)
 
                 run.add_event("enriched")
                 run.add_event("scored")

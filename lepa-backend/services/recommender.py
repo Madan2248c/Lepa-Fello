@@ -37,22 +37,9 @@ async def generate_recommendations(
     profile: CompanyProfile,
     persona: PersonaResult,
     intent: IntentResult,
+    business_profile: Optional[dict] = None,
 ) -> RecommendedSalesAction:
-    """
-    Generate AI-powered sales recommendations.
-    
-    Uses Claude 3.5 Haiku for fast, cost-effective inference.
-    Falls back to rule-based recommendations if AI fails.
-    
-    Args:
-        profile: Enriched company profile.
-        persona: Inferred visitor persona.
-        intent: Intent score and stage.
-        
-    Returns:
-        RecommendedSalesAction with priority, actions, and outreach angle.
-    """
-    prompt = _build_recommendation_prompt(profile, persona, intent)
+    prompt = _build_recommendation_prompt(profile, persona, intent, business_profile)
 
     ai_response = await invoke_haiku(
         prompt=prompt,
@@ -73,8 +60,8 @@ def _build_recommendation_prompt(
     profile: CompanyProfile,
     persona: PersonaResult,
     intent: IntentResult,
+    business_profile: Optional[dict] = None,
 ) -> str:
-    """Build prompt for recommendation generation."""
     
     company_context = []
     company_context.append(f"Company: {profile.name}")
@@ -84,7 +71,19 @@ def _build_recommendation_prompt(
         company_context.append(f"Size: {profile.company_size} employees")
     if profile.headquarters:
         company_context.append(f"Location: {profile.headquarters}")
-    
+
+    seller_context = ""
+    if business_profile:
+        parts = []
+        if business_profile.get("business_name"):
+            parts.append(f"Seller: {business_profile['business_name']}")
+        if business_profile.get("product_service"):
+            parts.append(f"Product/Service: {business_profile['product_service']}")
+        if business_profile.get("value_proposition"):
+            parts.append(f"Value Prop: {business_profile['value_proposition']}")
+        if parts:
+            seller_context = "\n\nSELLER CONTEXT:\n" + "\n".join(parts)
+
     return f"""Generate sales recommendations for this account:
 
 COMPANY:
@@ -97,9 +96,9 @@ VISITOR PROFILE:
 INTENT:
 - Score: {intent.score}/10
 - Stage: {intent.stage}
-- Signals: {', '.join(intent.reasons[:2]) if intent.reasons else 'None'}
+- Signals: {', '.join(intent.reasons[:2]) if intent.reasons else 'None'}{seller_context}
 
-Generate specific, actionable recommendations as JSON."""
+Generate specific, actionable recommendations as JSON. Tailor the outreach_angle to reference the seller's product/value prop if provided."""
 
 
 def _parse_ai_recommendation(response: str) -> Optional[RecommendedSalesAction]:

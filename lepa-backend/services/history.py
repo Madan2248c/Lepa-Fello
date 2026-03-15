@@ -4,8 +4,7 @@ Account history service.
 Maintains an in-memory registry of all analyzed accounts and their
 historical intent trends, visit counts, and run records.
 
-The store is a module-level dict — simple, fast, and zero-dependency.
-For production, replace with a DB-backed store using the same interface.
+Also persists to Neon PostgreSQL for production durability.
 """
 
 import re
@@ -14,6 +13,7 @@ from typing import Optional
 from models.account_history import AccountHistory
 from models.pipeline_run import PipelineRun, BatchRun
 from schemas.output_models import AnalyzeResponse
+from clients.db_client import save_account, save_pipeline_run
 
 
 # ── In-memory stores ──────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ def _derive_account_id(result: AnalyzeResponse) -> str:
 
 # ── Persistence ───────────────────────────────────────────────────────────────
 
-def persist_result(result: AnalyzeResponse, run: PipelineRun) -> AccountHistory:
+def persist_result(result: AnalyzeResponse, run: PipelineRun, tenant_id: str = "default") -> AccountHistory:
     """
     Persist an analysis result into the account history store.
 
@@ -90,6 +90,29 @@ def persist_result(result: AnalyzeResponse, run: PipelineRun) -> AccountHistory:
     run.account_id = account_id
     _runs[run.job_id] = run
 
+    # Persist to Neon PostgreSQL
+    try:
+        import asyncio
+        loop = asyncio.get_event_loop()
+        asyncio.ensure_future(save_account(
+            tenant_id=tenant_id,
+            account_id=account_id,
+            account_name=result.account_name,
+            domain=result.domain,
+            industry=result.industry,
+        ), loop=loop)
+        result_dict = result.model_dump(mode="json")
+        asyncio.ensure_future(save_pipeline_run(
+            tenant_id=tenant_id,
+            account_id=account_id,
+            input_type=result.input_type,
+            result_json=result_dict,
+            confidence=result.overall_confidence,
+        ), loop=loop)
+    except Exception as e:
+        import logging
+        logging.warning(f"Failed to persist to database: {e}")
+
     return history
 
 
@@ -125,3 +148,24 @@ def get_batch(batch_id: str) -> Optional[BatchRun]:
 
 def list_runs_for_account(account_id: str) -> list[PipelineRun]:
     return [r for r in _runs.values() if r.account_id == account_id]
+
+
+def list_all_runs(limit: int = 100) -> list[dict]:
+    """List all pipeline runs from in-memory store, formatted for API response."""
+    runs = list(_runs.values())
+    runs.sort(key=lambda r: r.started_at or r.finished_at or r.job_id, reverse=True)
+    result = []
+    for r in runs[:limit]:
+        acc = _accounts.get(r.account_id)
+        result.append({
+            "job_id": r.job_id,
+            "account_id": r.account_id,
+            "account_name": acc.account_name if acc else None,
+            "input_type": r.input_type,
+            "status": r.status,
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+            "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+            "elapsed_seconds": r.elapsed_seconds,
+            "error": r.error,
+        })
+    return result

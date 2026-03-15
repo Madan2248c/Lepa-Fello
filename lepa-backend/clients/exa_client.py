@@ -26,7 +26,10 @@ class ExaResult:
     published_date: Optional[str] = None
     text: Optional[str] = None
     score: float = 0.0
-
+    # People search extras
+    person_name: Optional[str] = None
+    person_title: Optional[str] = None
+    person_company: Optional[str] = None
 
 @dataclass
 class ExaSearchResponse:
@@ -35,6 +38,122 @@ class ExaSearchResponse:
     results: list[ExaResult] = field(default_factory=list)
     success: bool = False
     error: Optional[str] = None
+
+
+async def search_business_signals_dated(
+    company_name: str,
+    domain: Optional[str] = None,
+    num_results: int = 10,
+    start_published_date: Optional[str] = None,
+    end_published_date: Optional[str] = None,
+) -> ExaSearchResponse:
+    """Search for business signals with optional date range filtering."""
+    api_key = os.getenv("EXA_API_KEY")
+    if not api_key:
+        return ExaSearchResponse(success=False, error="EXA_API_KEY not configured")
+
+
+async def search_people(
+    query: str,
+    num_results: int = 10,
+) -> ExaSearchResponse:
+    """
+    Search for people using Exa's People Search (category='people').
+    
+    Returns LinkedIn profiles and other professional profiles.
+    Example queries:
+    - "Ivan Zhao CEO Notion"
+    - "VP of Product at Microsoft"
+    - "enterprise sales reps from Stripe"
+    
+    Args:
+        query: Natural language query for people search
+        num_results: Number of results to return
+        
+    Returns:
+        ExaSearchResponse with LinkedIn profile URLs
+    """
+    api_key = os.getenv("EXA_API_KEY")
+    if not api_key:
+        return ExaSearchResponse(success=False, error="EXA_API_KEY not configured")
+    
+    headers = {
+        "x-api-key": api_key,
+        "Content-Type": "application/json",
+    }
+    
+    payload = {
+        "query": query,
+        "category": "people",
+        "numResults": num_results,
+        "useAutoprompt": True,
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{EXA_API_BASE}/search",
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            results = []
+            for item in data.get("results", []):
+                # Extract structured person data from entities if available
+                person_name = person_title_str = person_company = None
+                entities = item.get("entities") or []
+                if entities:
+                    props = entities[0].get("properties", {})
+                    person_name = props.get("name")
+                    work = props.get("workHistory") or []
+                    if work:
+                        person_title_str = work[0].get("title")
+                        co = work[0].get("company") or {}
+                        person_company = co.get("name")
+
+                results.append(
+                    ExaResult(
+                        title=item.get("title", ""),
+                        url=item.get("url", ""),
+                        published_date=item.get("publishedDate"),
+                        score=item.get("score", 0.0),
+                        person_name=person_name,
+                        person_title=person_title_str,
+                        person_company=person_company,
+                    )
+                )
+            
+            return ExaSearchResponse(results=results, success=True)
+    
+    except Exception as e:
+        return ExaSearchResponse(success=False, error=str(e))
+
+
+async def search_business_signals_dated(
+    company_name: str,
+    domain: Optional[str] = None,
+    num_results: int = 10,
+    start_published_date: Optional[str] = None,
+    end_published_date: Optional[str] = None,
+) -> ExaSearchResponse:
+    """Search for business signals with optional date range filtering."""
+    api_key = os.getenv("EXA_API_KEY")
+    if not api_key:
+        return ExaSearchResponse(success=False, error="EXA_API_KEY not configured")
+
+    query = f"{company_name} company news funding hiring expansion product launch"
+    return await _exa_search(
+        api_key=api_key,
+        query=query,
+        num_results=num_results,
+        include_text=False,
+        use_autoprompt=True,
+        exclude_domains=["linkedin.com", "facebook.com"],
+        start_published_date=start_published_date,
+        end_published_date=end_published_date,
+    )
 
 
 async def search_business_signals(
@@ -123,6 +242,8 @@ async def _exa_search(
     use_autoprompt: bool = True,
     include_domains: Optional[list[str]] = None,
     exclude_domains: Optional[list[str]] = None,
+    start_published_date: Optional[str] = None,
+    end_published_date: Optional[str] = None,
 ) -> ExaSearchResponse:
     """
     Core Exa search call with text content retrieval.
@@ -149,6 +270,10 @@ async def _exa_search(
         payload["includeDomains"] = include_domains
     if exclude_domains:
         payload["excludeDomains"] = exclude_domains
+    if start_published_date:
+        payload["startPublishedDate"] = start_published_date
+    if end_published_date:
+        payload["endPublishedDate"] = end_published_date
 
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:

@@ -26,6 +26,15 @@ class VisitorSignalInput(BaseModel):
     location_metadata: Optional[dict] = Field(
         None, description="Geo location from client (city, region, country)"
     )
+    icp_industries: Optional[list[str]] = Field(
+        default_factory=list, description="Target industries for ICP scoring"
+    )
+    icp_size_min: Optional[int] = Field(
+        11, ge=1, description="Minimum company size for ICP"
+    )
+    icp_size_max: Optional[int] = Field(
+        5000, le=100000, description="Maximum company size for ICP"
+    )
 
 
 class CompanySeedInput(BaseModel):
@@ -34,4 +43,13 @@ class CompanySeedInput(BaseModel):
     company_name: str = Field(..., min_length=1, description="Name of the company to analyze")
     partial_domain: Optional[str] = Field(
         None, description="Optional partial or full domain hint (e.g., 'acme' or 'acme.com')"
+    )
+    icp_industries: Optional[list[str]] = Field(
+        default_factory=list, description="Target industries for ICP scoring"
+    )
+    icp_size_min: Optional[int] = Field(
+        11, ge=1, description="Minimum company size for ICP"
+    )
+    icp_size_max: Optional[int] = Field(
+        5000, le=100000, description="Maximum company size for ICP"
     )

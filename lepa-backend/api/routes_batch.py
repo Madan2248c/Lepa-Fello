@@ -8,7 +8,7 @@ GET  /batch/{id}     — Get batch run status and results
 import logging
 from typing import Union
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from schemas.input_models import CompanySeedInput, VisitorSignalInput
@@ -70,9 +70,13 @@ Process multiple company seeds or visitor signals in one request.
 - Results are persisted to account history automatically.
     """,
 )
-async def batch_analyze(request: BatchAnalyzeRequest) -> BatchAnalyzeResponse:
+async def batch_analyze(
+    request: BatchAnalyzeRequest,
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+) -> BatchAnalyzeResponse:
     from services.batch_runner import run_batch
 
+    tenant_id = x_tenant_id or "default"
     items = request.all_items()
 
     if not items:
@@ -81,9 +85,9 @@ async def batch_analyze(request: BatchAnalyzeRequest) -> BatchAnalyzeResponse:
     if len(items) > 10:
         raise HTTPException(status_code=400, detail="Batch size limit is 10 items per request.")
 
-    logger.info(f"Starting batch analysis: {len(items)} items")
+    logger.info(f"Starting batch analysis: {len(items)} items (tenant={tenant_id})")
 
-    batch, item_results = await run_batch(items)
+    batch, item_results = await run_batch(items, tenant_id=tenant_id)
 
     summaries = []
     for item_result in item_results:

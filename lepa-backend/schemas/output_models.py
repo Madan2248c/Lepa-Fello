@@ -1,4 +1,4 @@
-from typing import Optional, Literal
+from typing import Optional, Literal, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -65,6 +65,68 @@ class EnrichmentEvidence(BaseModel):
     technology_sources: list[str] = Field(default_factory=list)
 
 
+class BuyingCommitteeMember(BaseModel):
+    """A member of the buying committee with role classification and optional LinkedIn enrichment."""
+
+    name: str
+    title: str
+    role: str = Field(..., description="Economic Buyer | Champion | Technical Evaluator | End User | Blocker | Influencer")
+    rationale: str
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    source_url: Optional[str] = None
+    linkedin_profile: Optional[dict] = Field(None, description="Enriched LinkedIn person profile data")
+
+
+class TrendVelocity(BaseModel):
+    """Signal velocity / surge detection for a company."""
+
+    status: Literal["surging", "stable", "declining", "unknown"]
+    recent_signal_count: int = 0
+    baseline_signal_count: int = 0
+    velocity_ratio: float = 0.0
+    surge_topics: list[str] = Field(default_factory=list)
+    interpretation: str = ""
+
+
+class OutreachDraft(BaseModel):
+    """AI-generated personalized outreach drafts."""
+
+    email_subject: str = ""
+    email_body: str = ""
+    linkedin_message: str = ""
+    personalization_hooks: list[str] = Field(default_factory=list)
+
+
+class IcpFitScore(BaseModel):
+    """ICP fit scoring with dimension breakdown."""
+
+    overall_score: int = Field(..., ge=0, le=100, description="0-100 ICP fit score")
+    tier: Literal["Strong Fit", "Good Fit", "Partial Fit", "Poor Fit"]
+    dimension_scores: dict[str, int] = Field(default_factory=dict)
+    fit_reasons: list[str] = Field(default_factory=list)
+    gap_reasons: list[str] = Field(default_factory=list)
+
+
+class CompetitiveContext(BaseModel):
+    """Competitive intelligence for sales positioning."""
+
+    current_vendors: list[str] = Field(default_factory=list)
+    competitor_categories: dict[str, list[str]] = Field(default_factory=dict)
+    competitive_mentions: list[str] = Field(default_factory=list)
+    displacement_opportunities: list[dict] = Field(default_factory=list)
+    positioning_notes: list[str] = Field(default_factory=list)
+
+
+class PipelineStep(BaseModel):
+    """A single step in the enrichment pipeline trace."""
+    step: str
+    source: str
+    status: Literal["success", "partial", "failed", "skipped"]
+    duration_ms: Optional[int] = None
+    records_found: Optional[int] = None
+    note: str = ""
+
+
 class AnalyzeResponse(BaseModel):
     """Complete analysis response — Phase 1 + Phase 2 enrichment fields."""
 
@@ -111,6 +173,28 @@ class AnalyzeResponse(BaseModel):
     evidence: EnrichmentEvidence = Field(
         default_factory=EnrichmentEvidence, description="Structured evidence from Phase 2 enrichment"
     )
+
+    # Phase 3: Advanced intelligence features
+    buying_committee: list[BuyingCommitteeMember] = Field(
+        default_factory=list, description="Buying committee with role classification and LinkedIn enrichment"
+    )
+    trend_velocity: Optional[TrendVelocity] = Field(
+        None, description="Signal surge/velocity detection"
+    )
+    outreach_draft: Optional[OutreachDraft] = Field(
+        None, description="AI-generated personalized outreach drafts"
+    )
+    icp_fit: Optional[IcpFitScore] = Field(
+        None, description="ICP fit score with dimension breakdown"
+    )
+    competitive_context: Optional[CompetitiveContext] = Field(
+        None, description="Competitive intelligence and positioning notes"
+    )
+
+    pipeline_trace: list[PipelineStep] = Field(
+        default_factory=list, description="Enrichment pipeline execution trace for transparency"
+    )
+
     generated_at: datetime = Field(
         default_factory=datetime.utcnow, description="Timestamp of analysis"
     )

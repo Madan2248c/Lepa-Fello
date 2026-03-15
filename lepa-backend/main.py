@@ -24,8 +24,10 @@ logger = logging.getLogger("lepa")
 
 from api.routes_analyze import router as analyze_router
 from api.routes_batch import router as batch_router
-from api.routes_history import router as history_router
 from api.routes_crm import router as crm_router
+from api.routes_icp import router as icp_router
+from api.routes_contacts import router as contacts_router
+from api.routes_history import router as history_router
 
 
 def validate_config():
@@ -114,8 +116,10 @@ app.add_middleware(
 
 app.include_router(analyze_router)
 app.include_router(batch_router)
-app.include_router(history_router)
 app.include_router(crm_router)
+app.include_router(icp_router)
+app.include_router(contacts_router)
+app.include_router(history_router)
 
 
 @app.get("/", tags=["root"])
@@ -131,6 +135,7 @@ def read_root():
             "analyze_visitor": "POST /analyze/visitor",
             "batch_analyze": "POST /batch/analyze",
             "list_accounts": "GET /accounts",
+            "list_pipeline_runs": "GET /pipeline_runs",
             "account_history": "GET /accounts/{account_id}",
             "crm_export": "POST /crm/export/{account_id}",
         },
@@ -140,7 +145,7 @@ def read_root():
 @app.get("/health", tags=["health"])
 def health_check():
     """Health check endpoint."""
-    from services.history import list_accounts
+    from services.result_cache import list_cached_results
 
     config_status = {
         "aws": bool(os.getenv("AWS_PROFILE") or os.getenv("AWS_ACCESS_KEY_ID")),
@@ -158,7 +163,7 @@ def health_check():
         "service": "lepa-backend",
         "version": "2.0.0",
         "config": config_status,
-        "accounts_tracked": len(list_accounts(limit=1000)),
+        "cached_results": len(list_cached_results("default", limit=1000)),
     }
 
 

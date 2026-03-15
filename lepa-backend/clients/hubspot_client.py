@@ -210,3 +210,90 @@ def _build_properties(
     props["description"] = intelligence_block[:1000]
 
     return props
+
+
+# ── HubSpot Contacts API ──────────────────────────────────────────────────────
+
+async def upsert_contact(
+    name: str,
+    title: Optional[str],
+    company_name: str,
+    company_domain: str,
+    linkedin_url: Optional[str],
+    role: Optional[str],
+    headline: Optional[str],
+    about: Optional[str],
+) -> HubSpotSyncResult:
+    """Create or update a HubSpot Contact record."""
+    token = os.getenv("HUBSPOT_ACCESS_TOKEN")
+    if not token:
+        return HubSpotSyncResult(success=False, error="HUBSPOT_ACCESS_TOKEN not configured")
+
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    parts = name.strip().split(" ", 1)
+    firstname = parts[0]
+    lastname = parts[1] if len(parts) > 1 else ""
+
+    notes = f"Role: {role or 'Unknown'}"
+    if headline:
+        notes += f"\nHeadline: {headline}"
+    if about:
+        notes += f"\nAbout: {about[:400]}"
+
+    properties = {
+        "firstname": firstname,
+        "lastname": lastname,
+        "jobtitle": title or "",
+        "company": company_name,
+        "hs_linkedin_url": linkedin_url or "",
+        "message": notes[:1000],
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            # Search by LinkedIn URL or name+company
+            existing_id = await _find_contact(client, headers, linkedin_url, firstname, lastname, company_name)
+
+            if existing_id:
+                resp = await client.patch(
+                    f"{HUBSPOT_API_BASE}/crm/v3/objects/contacts/{existing_id}",
+                    headers=headers, json={"properties": properties},
+                )
+                resp.raise_for_status()
+                return HubSpotSyncResult(success=True, external_id=existing_id, action="updated")
+            else:
+                resp = await client.post(
+                    f"{HUBSPOT_API_BASE}/crm/v3/objects/contacts",
+                    headers=headers, json={"properties": properties},
+                )
+                resp.raise_for_status()
+                return HubSpotSyncResult(success=True, external_id=str(resp.json().get("id")), action="created")
+
+    except httpx.HTTPStatusError as e:
+        return HubSpotSyncResult(success=False, error=f"HubSpot {e.response.status_code}: {e.response.text[:200]}")
+    except Exception as e:
+        return HubSpotSyncResult(success=False, error=str(e)[:200])
+
+
+async def _find_contact(client, headers, linkedin_url, firstname, lastname, company) -> Optional[str]:
+    filters = []
+    if linkedin_url:
+        filters.append({"propertyName": "hs_linkedin_url", "operator": "EQ", "value": linkedin_url})
+    else:
+        filters = [
+            {"propertyName": "firstname", "operator": "EQ", "value": firstname},
+            {"propertyName": "lastname", "operator": "EQ", "value": lastname},
+            {"propertyName": "company", "operator": "EQ", "value": company},
+        ]
+    try:
+        resp = await client.post(
+            f"{HUBSPOT_API_BASE}/crm/v3/objects/contacts/search",
+            headers=headers,
+            json={"filterGroups": [{"filters": filters}], "limit": 1},
+        )
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+        return str(results[0]["id"]) if results else None
+    except Exception:
+        return None

@@ -1,15 +1,16 @@
 """
 Account history API routes.
 
-GET /accounts              — List all tracked accounts
+GET /accounts              — List all tracked accounts (from DB)
 GET /accounts/{id}         — Get full history for one account
 GET /accounts/{id}/audit   — Get confidence audit for latest run
+GET /pipeline_runs        — List all pipeline runs (analysis history)
 GET /jobs/{id}             — Get a single pipeline run
 """
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 
 logger = logging.getLogger("lepa.api.history")
 
@@ -17,34 +18,87 @@ router = APIRouter(tags=["history"])
 
 
 @router.get(
+    "/pipeline_runs",
+    summary="List all pipeline runs",
+    description="Returns all analysis runs across all accounts, most recent first.",
+)
+async def list_pipeline_runs(
+    limit: int = Query(default=100, le=200),
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+):
+    tenant_id = x_tenant_id or "default"
+    from clients.db_client import list_pipeline_runs as _list_db
+    from services.history import list_all_runs as _list_mem
+
+    try:
+        runs = await _list_db(tenant_id=tenant_id, limit=limit)
+        return {"total": len(runs), "runs": runs}
+    except Exception as e:
+        logger.warning(f"Failed to fetch pipeline runs from DB: {e}")
+
+    runs = _list_mem(limit=limit)
+    return {"total": len(runs), "runs": runs}
+
+
+@router.get(
     "/accounts",
     summary="List all tracked accounts",
     description="Returns all accounts that have been analyzed, sorted by most recently seen.",
 )
-async def list_accounts(limit: int = Query(default=50, le=100)):
-    from services.history import list_accounts as _list
+async def list_accounts(
+    limit: int = Query(default=50, le=100),
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+):
+    tenant_id = x_tenant_id or "default"
+    from services.history import list_accounts as _list_mem
+    from clients.db_client import list_accounts as _list_db
 
-    accounts = _list(limit=limit)
-    return {
-        "total": len(accounts),
-        "accounts": [
-            {
-                "account_id": a.account_id,
-                "account_name": a.account_name,
-                "domain": a.domain,
-                "industry": a.industry,
-                "visit_count_total": a.visit_count_total,
-                "first_seen_at": a.first_seen_at,
-                "last_seen_at": a.last_seen_at,
-                "latest_intent_score": a.latest_intent.intent_score if a.latest_intent else None,
-                "latest_intent_stage": a.latest_intent.intent_stage if a.latest_intent else None,
-                "intent_direction": a.intent_direction,
-                "run_count": len(a.run_ids),
-                "crm_sync_status": a.crm_sync_status,
-            }
-            for a in accounts
-        ],
-    }
+    # Get from DB first, fall back to in-memory
+    try:
+        db_accounts = await _list_db(tenant_id=tenant_id, limit=limit)
+        return {
+            "total": len(db_accounts),
+            "accounts": [
+                {
+                    "account_id": a.get("account_id"),
+                    "account_name": a.get("account_name"),
+                    "domain": a.get("domain"),
+                    "industry": a.get("industry"),
+                    "visit_count_total": 0,
+                    "first_seen_at": None,
+                    "last_seen_at": None,
+                    "latest_intent_score": a.get("confidence"),
+                    "latest_intent_stage": a.get("input_type"),
+                    "intent_direction": "unknown",
+                    "run_count": 0,
+                    "crm_sync_status": "unknown",
+                }
+                for a in db_accounts
+            ],
+        }
+    except Exception:
+        # Fallback to in-memory
+        accounts = _list_mem(limit=limit)
+        return {
+            "total": len(accounts),
+            "accounts": [
+                {
+                    "account_id": a.account_id,
+                    "account_name": a.account_name,
+                    "domain": a.domain,
+                    "industry": a.industry,
+                    "visit_count_total": a.visit_count_total,
+                    "first_seen_at": a.first_seen_at,
+                    "last_seen_at": a.last_seen_at,
+                    "latest_intent_score": a.latest_intent.intent_score if a.latest_intent else None,
+                    "latest_intent_stage": a.latest_intent.intent_stage if a.latest_intent else None,
+                    "intent_direction": a.intent_direction,
+                    "run_count": len(a.run_ids),
+                    "crm_sync_status": a.crm_sync_status,
+                }
+                for a in accounts
+            ],
+        }
 
 
 @router.get(

@@ -282,7 +282,7 @@ async def search_people_at_company(
     if not api_key:
         return []
 
-    url = f"{APOLLO_BASE_URL}/mixed_people/search"
+    url = f"{APOLLO_BASE_URL}/mixed_people/api_search"
     headers = {
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
