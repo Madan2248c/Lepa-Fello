@@ -81,6 +81,7 @@ async def get_cached_result(tenant_id: str, account_id: str) -> Optional[dict]:
         row = await conn.fetchrow("""
             SELECT result_json FROM pipeline_runs
             WHERE tenant_id = $1 AND account_id = $2
+              AND input_type IN ('visitor_signal', 'company_seed')
             ORDER BY created_at DESC LIMIT 1
         """, tenant_id, account_id)
         if not row:
